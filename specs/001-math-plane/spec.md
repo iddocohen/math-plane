@@ -250,7 +250,7 @@ The child earns stars: 1 per hit in "Treffer" and 3 per finished "Bauen", "Malen
 - **FR-040**: All child-facing text MUST be German and short. Tasks MUST be readable aloud with the browser's speech when the parent turns "Vorlesen" on (off by default).
 - **FR-041**: The game MUST NOT use the words "falsch" or "verloren", sad or punishing sounds, or any loss of stars or progress after a mistake.
 - **FR-042**: Bombs MUST burst into stars, confetti, smoke or water. There MUST be no fire, no rubble and no people hit.
-- **FR-043**: Sound effects MUST be switchable with "Geräusche". Every recorded sound MUST have a sound made in code as fallback, as math-soccer.
+- **FR-043**: Sound effects MUST be switchable with "Geräusche". Every recorded sound MUST have a sound made in code as fallback, as math-soccer. The build SHOULD look for CC0 recordings of a propeller hum, a falling bomb whistle, a soft hit pop and a crate landing, and bundle one only after its license is checked on its own page.
 
 **Rewards: the Hangar**
 

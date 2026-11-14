@@ -139,6 +139,7 @@ description: "Task list for Mathe-Flieger"
 - [ ] T071 [P] `tests/e2e/devices.spec.ts` for ipad-landscape and ipad-portrait: field, cards and grid fit without scroll, paint grid squares at least 44 CSS px, number pad shows for "Bauen" (critique P7, FR-056)
 - [ ] T072 [P] Adapt `tests/e2e/basePath.spec.ts` and `tests/e2e/performance.spec.ts` from math-soccer
 - [ ] T073 [P] Words check: Playwright walk over every screen asserting no "falsch" or "verloren" (SC-009)
+- [ ] T073a [P] Look for CC0 recordings of a propeller hum, a bomb whistle, a soft hit pop and a crate landing (for example on kenney.nl or opengameart.org); check each license on the asset's own page; bundle passing files in `public/assets/` and wire them in `src/audio/sfx.ts` with the synthesized sound as fallback; skip any sound whose license cannot be confirmed (PRD section 13, FR-043)
 - [ ] T074 Write `README.md`: what the game is for, how to play (both modes), parent guide (gate, settings, progress, backup), development commands, and the asset table with author, license and source for every bundled file (FR-058)
 - [ ] T075 Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm e2e`; fix failures
 - [ ] T076 Publish (R14, FR-060): `gh auth status`; `gh repo create iddocohen/math-plane --public --source . --push`; `gh api -X POST repos/iddocohen/math-plane/pages -f build_type=workflow`; wait for the "Build and publish to GitHub Pages" run; confirm `https://iddocohen.github.io/math-plane/` loads. If `gh` is not logged in, record the blocker in the implement report

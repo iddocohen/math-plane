@@ -1,7 +1,8 @@
 // Structure adapted from math-soccer src/app/MatchOverlay.tsx.
 /**
  * The React overlay over the round scene (contracts/screens.md "Round"). The top bar has the home button ("Zum
- * Start"), the banner (`data-testid="banner"`), the yellow "?" help button, the Hangar icon (with the Hangar on), the
+ * Start"), the banner (`data-testid="banner"`), the yellow "?" help button, the speaker button
+ * (`data-testid="speaker-button"`, only with "Vorlesen" on and a German voice), the Hangar icon (with the Hangar on), the
  * pause button, the fullscreen button and the gear. Below the banner is the message line (`data-testid="message"`).
  * At the bottom: the bomb bay in "Treffer" (`data-testid="bombs"`) or the task counter "Aufgabe 2 von 5", the clock
  * when "Uhr zeigen" is on, and "Fertig" (`data-testid="done"`) in "Bauen und Malen". During a "Bauen" task the number
@@ -92,6 +93,8 @@ interface Props {
   test: boolean;
   numberPad: boolean;
   showClock: boolean;
+  /** Reads the banner aloud; null hides the speaker button. */
+  onSpeak?: (() => void) | null;
   /** Opens the Hangar over the round; null when the Hangar is off. */
   onHangar: (() => void) | null;
   onPause: () => void;
@@ -104,7 +107,7 @@ interface Props {
   children?: ReactNode;
 }
 
-export function RoundOverlay({ controller, state, rules, banner, message, test, numberPad, showClock, onHangar, onPause, onHome, onDone, onSceneKey, gear, children }: Props) {
+export function RoundOverlay({ controller, state, rules, banner, message, test, numberPad, showClock, onSpeak = null, onHangar, onPause, onHome, onDone, onSceneKey, gear, children }: Props) {
   const text = t().round;
   const pad = numberPad && state.task.kind === 'bauen';
   const writing = state.phase === 'aim' || state.phase === 'check';
@@ -123,6 +126,11 @@ export function RoundOverlay({ controller, state, rules, banner, message, test, 
         <button type="button" className="help-button" data-testid="help" aria-label={text.help} aria-keyshortcuts="H" {...noFocus} onClick={() => controller.help()}>
           ?
         </button>
+        {onSpeak && (
+          <button type="button" className="icon-button" data-testid="speaker-button" aria-label={text.speaker} title={text.speaker} {...noFocus} onClick={onSpeak}>
+            <span aria-hidden="true">🔊</span>
+          </button>
+        )}
         {onHangar && (
           <button type="button" className="icon-button" data-testid="round-hangar" aria-label={text.hangar} {...noFocus} onClick={onHangar}>
             <span aria-hidden="true">✈</span>

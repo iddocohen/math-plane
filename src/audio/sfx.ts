@@ -7,8 +7,10 @@
  * - Every sound is synthesized with the Web Audio API, after the prototype: the propeller is its `whoosh`, the bomb
  *   whistle its `drop`, the hit its `boom`, the miss its `soft`, the crate its `thud`, the puff its `puff` and the cheer
  *   its `cheer`. `coin` and `fanfare` are math-soccer's synthesized stand-ins.
- * - Sounds with a bundled file (`BUNDLED`: `coin.mp3`, `fanfare.mp3`, and math-soccer's confetti `pop.mp3` for the hit)
- *   play that file once it is decoded, with `clips`. A file that is missing or cannot be decoded keeps the synthesized
+ * - Sounds with a bundled file play that file once it is decoded, with `clips`. `BUNDLED` holds `coin.mp3`, `fanfare.mp3`
+ *   and math-soccer's confetti `pop.mp3` for the hit, and three CC0 recordings: `propeller.mp3` (freesound 741363,
+ *   Mish7913), `whistle.mp3` (freesound 506313, Daleonfire) and `crate.mp3` (Kenney "Impact Sounds",
+ *   `impactWood_heavy_000.ogg`). A file that is missing or cannot be decoded keeps the synthesized
  *   sound, and so does every sound until decoding has finished. New CC0 recordings join `BUNDLED` once their license
  *   is checked (FR-043, FR-058).
  * - Every sound follows "Geräusche" (`sound.effects`), read on each sound so a change applies at once.
@@ -42,7 +44,10 @@ export type SoundName = (typeof SOUND_NAMES)[number];
 
 /** The sounds with a bundled file in public/assets, by file name (README asset table). */
 export const BUNDLED: Partial<Record<SoundName, string>> = {
+  propeller: 'propeller.mp3',
+  whistle: 'whistle.mp3',
   hit: 'pop.mp3',
+  crate: 'crate.mp3',
   coin: 'coin.mp3',
   fanfare: 'fanfare.mp3',
 };

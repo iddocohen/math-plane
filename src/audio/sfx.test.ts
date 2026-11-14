@@ -283,8 +283,15 @@ describe('sfx (FR-043, research R13)', () => {
       return { f, sfx, switches, fetched, clips };
     }
 
-    it('uses the files copied from math-soccer: coin, fanfare and the confetti pop for the hit', () => {
-      expect(BUNDLED).toEqual({ hit: 'pop.mp3', coin: 'coin.mp3', fanfare: 'fanfare.mp3' });
+    it('uses the files copied from math-soccer (coin, fanfare, the confetti pop for the hit) and the CC0 propeller, whistle and crate', () => {
+      expect(BUNDLED).toEqual({
+        propeller: 'propeller.mp3',
+        whistle: 'whistle.mp3',
+        hit: 'pop.mp3',
+        crate: 'crate.mp3',
+        coin: 'coin.mp3',
+        fanfare: 'fanfare.mp3',
+      });
     });
 
     it('fetches and decodes every bundled file once, after the first unlock', async () => {
@@ -292,7 +299,14 @@ describe('sfx (FR-043, research R13)', () => {
       expect(fetched).toEqual([]);
       await sfx.unlock();
       await sfx.unlock();
-      expect([...fetched].sort()).toEqual(['/assets/coin.mp3', '/assets/fanfare.mp3', '/assets/pop.mp3']);
+      expect([...fetched].sort()).toEqual([
+        '/assets/coin.mp3',
+        '/assets/crate.mp3',
+        '/assets/fanfare.mp3',
+        '/assets/pop.mp3',
+        '/assets/propeller.mp3',
+        '/assets/whistle.mp3',
+      ]);
     });
 
     it('plays the file instead of the synthesized sound, and synthesizes sounds without a file', async () => {
@@ -301,10 +315,13 @@ describe('sfx (FR-043, research R13)', () => {
       sfx.coin();
       sfx.fanfare();
       sfx.hit();
-      expect(clips()).toEqual(['coin.mp3', 'fanfare.mp3', 'pop.mp3']);
-      expect(f.started.filter((s) => s.kind === 'osc')).toEqual([]);
+      sfx.propeller();
+      sfx.whistle();
       sfx.crate();
-      expect(f.started.filter((s) => s.kind === 'osc')).toHaveLength(1);
+      expect(clips()).toEqual(['coin.mp3', 'fanfare.mp3', 'pop.mp3', 'propeller.mp3', 'whistle.mp3', 'crate.mp3']);
+      expect(f.started.filter((s) => s.kind === 'osc')).toEqual([]);
+      sfx.miss();
+      expect(f.started.filter((s) => s.kind === 'osc')).toHaveLength(2);
     });
 
     it('"Geräusche" still gates every file', async () => {

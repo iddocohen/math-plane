@@ -10,8 +10,12 @@
  */
 import type { Square } from './bauenLayout';
 
-/** The grid card: its middle on x, its top, the largest grid side and square, and the card's margins. */
-export const GRID_CARD = { cx: 1230, y: 390, side: 340, cellMax: 110, title: 54, pad: 32, under: 46 } as const;
+/**
+ * The grid card: its middle on x, its top, the largest grid side and square, and the card's margins. The side lets a
+ * grid 4 squares high (stacks of 4) keep squares of 95 units, which an iPad held upright (768 px for 1600 units) shows
+ * at 45.6 CSS px, above the 44 px a finger needs (critique P7, tests/e2e/devices.spec.ts).
+ */
+export const GRID_CARD = { cx: 1230, y: 390, side: 380, cellMax: 110, title: 54, pad: 32, under: 46 } as const;
 
 export interface GridBox {
   /** The card. */

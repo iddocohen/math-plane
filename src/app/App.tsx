@@ -235,7 +235,8 @@ export function App() {
 
   const startRound = useCallback(
     (mode: Mode) => {
-      speaker.prime();
+      // Tablet browsers speak only after a user tap: the start tap (or key) primes speech when "Vorlesen" is on.
+      if (persistence.settings().sound.speech) speaker.prime();
       void sfx.unlock();
       setSettings(persistence.settings());
       setSummary(null);
@@ -510,6 +511,8 @@ export function App() {
           test={parts.test}
           numberPad={numberPad}
           showClock={settings.showClock}
+          speak={settings.sound.speech ? speaker.speak : null}
+          speechAvailable={speaker.available}
           onHangar={settings.hangar ? openHangar : null}
           onPause={() => pause('pause')}
           onHome={() => pause('quit')}
@@ -549,6 +552,10 @@ interface RoundScreenProps {
   test: boolean;
   numberPad: boolean;
   showClock: boolean;
+  /** Reads text aloud; null while "Vorlesen" is off (FR-040). */
+  speak: ((text: string) => void) | null;
+  /** False when the browser has no speech or no German voice; the speaker button then hides. */
+  speechAvailable: boolean;
   onHangar: (() => void) | null;
   onPause: () => void;
   onHome: () => void;
@@ -556,9 +563,19 @@ interface RoundScreenProps {
   onSceneKey: (k: SceneKey) => void;
 }
 
-/** The round: the canvas under the overlay. Its own component, so a new state re-renders only the round. */
-function RoundScreen({ round, parentRef, gear, message, test, numberPad, showClock, onHangar, onPause, onHome, onDone, onSceneKey }: RoundScreenProps) {
+/**
+ * The round: the canvas under the overlay. Its own component, so a new state re-renders only the round.
+ *
+ * Spoken tasks (FR-040, as math-soccer): with "Vorlesen" on, each new task reads its banner once, and the speaker
+ * button reads it again.
+ */
+function RoundScreen({ round, parentRef, gear, message, test, numberPad, showClock, speak, speechAvailable, onHangar, onPause, onHome, onDone, onSceneKey }: RoundScreenProps) {
   const state = useRoundState(round.controller);
+  const banner = bannerText(state.task);
+  // `taskIndex` is listed so a new task with the same banner is read again; a miss keeps the task and reads nothing.
+  useEffect(() => {
+    if (speak) speak(banner);
+  }, [speak, banner, state.taskIndex]);
   return (
     <main className="round">
       <div className="game-parent" ref={parentRef} />
@@ -566,11 +583,12 @@ function RoundScreen({ round, parentRef, gear, message, test, numberPad, showClo
         controller={round.controller}
         state={state}
         rules={round.rules}
-        banner={bannerText(state.task)}
+        banner={banner}
         message={message}
         test={test}
         numberPad={numberPad}
         showClock={showClock}
+        onSpeak={speak && speechAvailable ? () => speak(banner) : null}
         onHangar={onHangar}
         onPause={onPause}
         onHome={onHome}

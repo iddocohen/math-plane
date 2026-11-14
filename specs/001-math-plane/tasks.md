@@ -133,15 +133,15 @@ description: "Task list for Mathe-Flieger"
 
 ## Phase 10: Polish and cross-cutting
 
-- [ ] T068 [P] Copy and adapt `tests/e2e/offline.spec.ts` and `tests/e2e/noExternalRequests.spec.ts` from math-soccer; play a round of each mode offline (SC-008, FR-057)
-- [ ] T069 [P] Copy and adapt `tests/e2e/pauseResume.spec.ts` and `leaveEarly.spec.ts`; refresh during a round continues it (stored round)
-- [ ] T070 [P] Adapt `tests/e2e/speech.spec.ts`: "Vorlesen" reads the banner; no speech API means no error
-- [ ] T071 [P] `tests/e2e/devices.spec.ts` for ipad-landscape and ipad-portrait: field, cards and grid fit without scroll, paint grid squares at least 44 CSS px, number pad shows for "Bauen" (critique P7, FR-056)
-- [ ] T072 [P] Adapt `tests/e2e/basePath.spec.ts` and `tests/e2e/performance.spec.ts` from math-soccer
-- [ ] T073 [P] Words check: Playwright walk over every screen asserting no "falsch" or "verloren" (SC-009)
-- [ ] T073a [P] Look for CC0 recordings of a propeller hum, a bomb whistle, a soft hit pop and a crate landing (for example on kenney.nl or opengameart.org); check each license on the asset's own page; bundle passing files in `public/assets/` and wire them in `src/audio/sfx.ts` with the synthesized sound as fallback; skip any sound whose license cannot be confirmed (PRD section 13, FR-043)
-- [ ] T074 Write `README.md`: what the game is for, how to play (both modes), parent guide (gate, settings, progress, backup), development commands, and the asset table with author, license and source for every bundled file (FR-058)
-- [ ] T075 Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm e2e`; fix failures
+- [X] T068 [P] Copy and adapt `tests/e2e/offline.spec.ts` and `tests/e2e/noExternalRequests.spec.ts` from math-soccer; play a round of each mode offline (SC-008, FR-057)
+- [X] T069 [P] Copy and adapt `tests/e2e/pauseResume.spec.ts` and `leaveEarly.spec.ts`; refresh during a round continues it (stored round)
+- [X] T070 [P] Adapt `tests/e2e/speech.spec.ts`: "Vorlesen" reads the banner; no speech API means no error
+- [X] T071 [P] `tests/e2e/devices.spec.ts` for ipad-landscape and ipad-portrait: field, cards and grid fit without scroll, paint grid squares at least 44 CSS px, number pad shows for "Bauen" (critique P7, FR-056)
+- [X] T072 [P] Adapt `tests/e2e/basePath.spec.ts` and `tests/e2e/performance.spec.ts` from math-soccer
+- [X] T073 [P] Words check: Playwright walk over every screen asserting no "falsch" or "verloren" (SC-009)
+- [X] T073a [P] Look for CC0 recordings of a propeller hum, a bomb whistle, a soft hit pop and a crate landing (for example on kenney.nl or opengameart.org); check each license on the asset's own page; bundle passing files in `public/assets/` and wire them in `src/audio/sfx.ts` with the synthesized sound as fallback; skip any sound whose license cannot be confirmed (PRD section 13, FR-043)
+- [X] T074 Write `README.md`: what the game is for, how to play (both modes), parent guide (gate, settings, progress, backup), development commands, and the asset table with author, license and source for every bundled file (FR-058)
+- [X] T075 Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm e2e`; fix failures
 - [ ] T076 Publish (R14, FR-060): `gh auth status`; `gh repo create iddocohen/math-plane --public --source . --push`; `gh api -X POST repos/iddocohen/math-plane/pages -f build_type=workflow`; wait for the "Build and publish to GitHub Pages" run; confirm `https://iddocohen.github.io/math-plane/` loads. If `gh` is not logged in, record the blocker in the implement report
 
 ## Dependencies

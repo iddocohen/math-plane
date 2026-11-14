@@ -14,7 +14,18 @@ describe('paintLayout', () => {
       expect(box.x).toBeGreaterThanOrEqual(960);
       expect(box.x + box.width).toBeLessThanOrEqual(1500);
       expect(box.y + box.height).toBeLessThan(900);
-      expect(box.c * Math.max(cols, rows)).toBeLessThanOrEqual(340);
+      expect(box.c * Math.max(cols, rows)).toBeLessThanOrEqual(380);
+    }
+  });
+
+  it('keeps every grid square at least 44 CSS px on an iPad held upright (768 px for the 1600-unit world)', () => {
+    for (const [cols, rows] of [
+      [2, 4],
+      [3, 3],
+      [3, 4],
+      [4, 4],
+    ] as const) {
+      expect(gridBox(cols, rows).c * (768 / 1600)).toBeGreaterThanOrEqual(44);
     }
   });
 

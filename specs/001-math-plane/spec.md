@@ -273,7 +273,7 @@ The child earns stars: 1 per hit in "Treffer" and 3 per finished "Bauen", "Malen
   - **Bedienung**: "Zahlenfeld" (automatic), "Uhr zeigen" (off), "Rekorde zeigen" (on), "Punkt nach voller Hilfe" (on).
   - **Hangar**: "Hangar und Sterne" (on).
   - **Daten**: "Daten sichern", "Daten laden", "QR-Code".
-- **FR-052**: Settings, progress records, personal bests, current levels and Hangar data MUST be stored in the browser in one versioned record, kept across sessions, and migrated or reset on load when old or damaged, as math-soccer.
+- **FR-052**: Settings, progress records, personal bests, current levels and Hangar data MUST be stored in the browser with a version number and checked on load, kept across sessions, and migrated or reset on load when old or damaged, as math-soccer.
 - **FR-053**: Data backup MUST work as math-soccer: download and load a file ("Daten sichern", "Daten laden"), and move to another browser by QR code or link.
 - **FR-054**: Saved settings MUST apply when the settings page closes, as math-soccer: settings that shape tasks apply from the next task, round length stays for the running round, display settings apply at once.
 - **FR-055**: Levels, task types, settings and saved progress MUST be kept as lists that new topics can join, so the "later" topics of the PRD (mirror halves, patterns, nets, perimeter and area) can be added as amendments without migrating away existing data.

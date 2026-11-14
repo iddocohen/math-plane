@@ -114,6 +114,20 @@ describe('round trip', () => {
     expect(loadRound(kv)).toEqual({ value: round, resetReason: 'none' });
   });
 
+  it('settings stored before "Musik" existed load with the music on and nothing reset', () => {
+    const kv = memoryKeyValue();
+    const old = { ...defaultSettings(), sound: { effects: false, speech: true } };
+    kv.set(SETTINGS_KEY, JSON.stringify(old));
+    expect(loadSettings(kv)).toEqual({ value: { ...old, sound: { effects: false, speech: true, music: true } }, resetReason: 'none' });
+  });
+
+  it('keeps the music off once it is stored off', () => {
+    const kv = memoryKeyValue();
+    const settings = { ...defaultSettings(), sound: { effects: true, speech: false, music: false } };
+    saveSettings(kv, settings);
+    expect(loadSettings(kv).value.sound.music).toBe(false);
+  });
+
   it('clearRound removes the stored round', () => {
     const kv = memoryKeyValue();
     saveRound(kv, storedRound());

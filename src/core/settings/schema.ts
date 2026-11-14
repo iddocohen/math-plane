@@ -34,7 +34,11 @@ export const settingsSchema = z.object({
     bombs: z.number().int().min(BOMBS_MIN).max(BOMBS_MAX),
     tasks: z.number().int().min(TASKS_MIN).max(TASKS_MAX),
   }),
-  sound: z.object({ effects: z.boolean(), speech: z.boolean() }),
+  /**
+   * "Geräusche", "Vorlesen" and "Musik". `music` came later than version 1: stored settings without it get the
+   * default (on) when they load, so they stay valid.
+   */
+  sound: z.object({ effects: z.boolean(), speech: z.boolean(), music: z.boolean().default(true) }),
   numberPad: z.enum(['auto', 'always', 'never']),
   showClock: z.boolean(),
   showRecords: z.boolean(),

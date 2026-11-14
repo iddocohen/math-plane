@@ -1,8 +1,8 @@
 // Adapted from math-soccer src/audio/sfx.ts: the Mathe-Flieger sounds, synthesized after the prototype's `SND`
-// (specs/001-math-plane/prototype/index.html), one switch, no crowd, no loops.
+// (specs/001-math-plane/prototype/index.html), no crowd; one quiet music loop.
 /**
- * The game's sounds (FR-043, research R13): `propeller`, `whistle`, `hit`, `miss`, `crate`, `puff`, `cheer`, `coin` and
- * `fanfare`.
+ * The game's sounds (FR-043, research R13): `propeller`, `whistle`, `hit`, `miss`, `crate`, `puff`, `cheer`, `coin`,
+ * `fanfare`, `tap` (a button), `levelUp` and `roundEnd`; and the background music.
  *
  * - Every sound is synthesized with the Web Audio API, after the prototype: the propeller is its `whoosh`, the bomb
  *   whistle its `drop`, the hit its `boom`, the miss its `soft`, the crate its `thud`, the puff its `puff` and the cheer
@@ -10,7 +10,8 @@
  * - Sounds with a bundled file play that file once it is decoded, with `clips`. `BUNDLED` holds `coin.mp3`, `fanfare.mp3`
  *   and math-soccer's confetti `pop.mp3` for the hit, and three CC0 recordings: `propeller.mp3` (freesound 741363,
  *   Mish7913), `whistle.mp3` (freesound 506313, Daleonfire) and `crate.mp3` (Kenney "Impact Sounds",
- *   `impactWood_heavy_000.ogg`). A file that is missing or cannot be decoded keeps the synthesized
+ *   `impactWood_heavy_000.ogg`), and Kenney's `tap.mp3` ("Interface Sounds"), `levelup.mp3` and `roundend.mp3`
+ *   ("Music Jingles"). A file that is missing or cannot be decoded keeps the synthesized
  *   sound, and so does every sound until decoding has finished. New CC0 recordings join `BUNDLED` once their license
  *   is checked (FR-043, FR-058).
  * - Every sound follows "Geräusche" (`sound.effects`), read on each sound so a change applies at once.
@@ -21,6 +22,10 @@
  *   a one-sample silent buffer, so the gesture is not lost to an `await`. Until the context runs, every sound is
  *   skipped silently.
  * - Every voice peaks at MAX_GAIN or lower.
+ * - Music (`setMusic`): one CC0 loop (`music.mp3`) at MUSIC_GAIN, well below MAX_GAIN. It plays only while the app
+ *   wants it (musicWanted: "Musik" on, round not paused, page not hidden) and the context runs, so never before the
+ *   unlock gesture. The file loads the first time it is wanted. It has no synthesized stand-in: when the file fails,
+ *   the music stays silent. A stopped loop goes on from where it stopped.
  */
 
 /** The part of AudioContext this module uses; tests pass a stand-in. */
@@ -39,7 +44,7 @@ export type AudioContextLike = Pick<
   | 'decodeAudioData'
 >;
 
-export const SOUND_NAMES = ['propeller', 'whistle', 'hit', 'miss', 'crate', 'puff', 'cheer', 'coin', 'fanfare'] as const;
+export const SOUND_NAMES = ['propeller', 'whistle', 'hit', 'miss', 'crate', 'puff', 'cheer', 'coin', 'fanfare', 'tap', 'levelUp', 'roundEnd'] as const;
 export type SoundName = (typeof SOUND_NAMES)[number];
 
 /** The sounds with a bundled file in public/assets, by file name (README asset table). */
@@ -50,9 +55,35 @@ export const BUNDLED: Partial<Record<SoundName, string>> = {
   crate: 'crate.mp3',
   coin: 'coin.mp3',
   fanfare: 'fanfare.mp3',
+  tap: 'tap.mp3',
+  levelUp: 'levelup.mp3',
+  roundEnd: 'roundend.mp3',
 };
 
+/** The music loop in public/assets (README asset table). */
+export const MUSIC_FILE = 'music.mp3';
+
 export const MAX_GAIN = 0.35;
+/** The music's level: a fifth of MAX_GAIN, so it stays behind every sound. */
+export const MUSIC_GAIN = 0.07;
+/** Seconds the music takes to fade in, and to fade out when it stops. */
+const MUSIC_FADE_IN = 1.2;
+const MUSIC_FADE_OUT = 0.25;
+
+/** What the music depends on. */
+export interface MusicState {
+  /** "Musik" (`sound.music`). */
+  on: boolean;
+  /** A round is paused (pause screen, Hangar or parent screens over it). */
+  paused: boolean;
+  /** The page is hidden. */
+  hidden: boolean;
+}
+
+/** True when the music should play: "Musik" on, no paused round, and the page in view. */
+export function musicWanted(s: MusicState): boolean {
+  return s.on && !s.paused && !s.hidden;
+}
 const SILENT = 0.001;
 
 /** The sound settings this module reads (settings.sound). */
@@ -84,6 +115,10 @@ export type Sfx = Record<SoundName, () => void> & {
    * comes back into view; returns a function that removes the listeners.
    */
   installUnlock(target?: EventTarget): () => void;
+  /** Plays the music loop while `on` (see musicWanted), once the context runs; stops it at once when false. */
+  setMusic(on: boolean): void;
+  /** True while the music loop plays. */
+  readonly musicPlaying: boolean;
 };
 
 export function createSfx(options: SfxOptions): Sfx {
@@ -218,6 +253,9 @@ export function createSfx(options: SfxOptions): Sfx {
       [523, 659, 784].forEach((f, i) => tone(c, f, 0.16, 'triangle', 0.2, null, i * 0.14));
       tone(c, 1047, 0.6, 'triangle', 0.2, null, 0.42);
     },
+    tap: (c) => tone(c, 880, 0.05, 'triangle', 0.05),
+    levelUp: (c) => [587, 659, 740, 784].forEach((f, i) => tone(c, f, 0.18, 'triangle', 0.14, null, i * 0.1)),
+    roundEnd: (c) => [523, 587, 659, 784, 880, 1047].forEach((f, i) => tone(c, f, 0.2, 'triangle', 0.14, null, i * 0.11)),
   };
 
   /** A one-sample silent sound: iOS Safari starts the context's output only once a sound starts inside a gesture. */
@@ -248,7 +286,65 @@ export function createSfx(options: SfxOptions): Sfx {
         // Refused outside a gesture: the next key press or tap tries again.
       }),
       loadClips(c),
-    ]).then(() => undefined);
+    ]).then(() => applyMusic());
+  };
+
+  // The music loop: wanted by the app, loaded once, started and stopped with short fades.
+  let musicOn = false;
+  let music: AudioBuffer | null = null;
+  let musicLoad: Promise<void> | null = null;
+  let voice: { src: AudioBufferSourceNode; gain: GainNode; startedAt: number; offset: number } | null = null;
+  /** Seconds into the loop where it goes on next time. */
+  let musicOffset = 0;
+
+  const stopMusic = () => {
+    if (!voice || !ctx) {
+      voice = null;
+      return;
+    }
+    const t = ctx.currentTime;
+    const length = music?.duration ?? 0;
+    musicOffset = length > 0 ? (voice.offset + t - voice.startedAt) % length : 0;
+    voice.gain.gain.setValueAtTime(MUSIC_GAIN, t);
+    voice.gain.gain.linearRampToValueAtTime(SILENT, t + MUSIC_FADE_OUT);
+    voice.src.stop(t + MUSIC_FADE_OUT + 0.02);
+    voice = null;
+  };
+
+  const applyMusic = () => {
+    const c = musicOn ? running() : null;
+    if (!c) {
+      stopMusic();
+      return;
+    }
+    if (voice) return;
+    if (!music) {
+      const url = options.clips;
+      if (!url) return;
+      musicLoad ??= fetchClip(url(MUSIC_FILE))
+        .then((data) => c.decodeAudioData(data))
+        .then(
+          (buffer) => {
+            music = buffer;
+            applyMusic();
+          },
+          () => {
+            // Missing or broken file: the music stays silent.
+          },
+        );
+      return;
+    }
+    const t = c.currentTime;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(SILENT, t);
+    gain.gain.linearRampToValueAtTime(MUSIC_GAIN, t + MUSIC_FADE_IN);
+    gain.connect(c.destination);
+    const src = c.createBufferSource();
+    src.buffer = music;
+    src.loop = true;
+    src.connect(gain);
+    src.start(t, musicOffset);
+    voice = { src, gain, startedAt: t, offset: musicOffset };
   };
 
   const play = (name: SoundName) => {
@@ -279,6 +375,13 @@ export function createSfx(options: SfxOptions): Sfx {
         gestures.forEach((e) => target.removeEventListener(e, onGesture));
         target.removeEventListener('visibilitychange', onVisible);
       };
+    },
+    setMusic(on: boolean) {
+      musicOn = on;
+      applyMusic();
+    },
+    get musicPlaying() {
+      return voice !== null;
     },
   };
 }

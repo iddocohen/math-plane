@@ -74,7 +74,7 @@ Stars buy looks for the plane in five groups: Farbe, Heckbild, Rauch, Bomben and
   - "Themen": turn each task kind on or off.
   - "Gebäude": the largest plan (2 by 2 or 3 by 3), the highest stack (2 to 4), the sides used, and whether buildings have cylinders and spheres.
   - "Runde": bombs per "Treffer" round (5 to 20) and tasks per "Bauen und Malen" round (3 to 10).
-  - "Ton": "Geräusche" (sound effects) and "Vorlesen" (off by default). "Vorlesen" reads each task aloud with the browser's German voice and adds a speaker button that reads it again.
+  - "Ton": "Geräusche" (sound effects), "Musik" (a quiet music loop, on by default; it stops while a round is paused or the page is hidden) and "Vorlesen" (off by default). "Vorlesen" reads each task aloud with the browser's German voice and adds a speaker button that reads it again.
   - "Bedienung": "Zahlenfeld" (automatic shows the number pad on touch screens), "Uhr zeigen", "Rekorde zeigen" and "Punkt nach voller Hilfe" (whether a task solved after the third help step still earns stars).
   - "Hangar und Sterne": turn the Hangar and the stars off.
   - Saved settings apply when the settings page closes. Settings that change tasks apply from the next task. The running round keeps its length.
@@ -127,8 +127,16 @@ The game bundles a few free asset files in `public/assets/`. The license of each
 | Falling bomb | `whistle.mp3` | Falling Bomb.wav (freesound 506313), sped up to 1.0 s at the same pitch, with fades, mono | Daleonfire | CC0 1.0 | [freesound.org/people/Daleonfire/sounds/506313](https://freesound.org/people/Daleonfire/sounds/506313/) |
 | Crate landing | `crate.mp3` | Impact Sounds, `impactWood_heavy_000.ogg`, mono with a short fade | Kenney | CC0 1.0 | [kenney.nl/assets/impact-sounds](https://kenney.nl/assets/impact-sounds) |
 | Stars, sparkles and light | `star_04.png`, `star_06.png`, `star_07.png`, `flare_01.png`, `light_01.png` | Particle Pack, white versions scaled to 64 px and tinted in code; reused from math-soccer | Kenney | CC0 1.0 | [kenney.nl/assets/particle-pack](https://kenney.nl/assets/particle-pack) |
+| Trees, bushes and fences on the hills of the round and the start screen | `tree.png`, `treePine.png`, `treeLong.png`, `bush1.png`, `bush2.png`, `fence.png` | Background Elements Redux, `PNG/Default/` files of the same names, unchanged | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/background-elements-redux](https://kenney.nl/assets/background-elements-redux) |
+| Sun in the sky | `sun.png` | Background Elements Redux, `PNG/Retina/sun.png`, scaled to 128 px and colored yellow | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/background-elements-redux](https://kenney.nl/assets/background-elements-redux) |
+| Drifting clouds | `cloud1.png` to `cloud4.png` | Background Elements Redux, `PNG/Retina/cloud1.png` to `cloud4.png`, scaled to 300 px wide | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/background-elements-redux](https://kenney.nl/assets/background-elements-redux) |
+| Smoke trail and soft puffs | `smoke_07.png` | Particle Pack, `PNG (Transparent)/smoke_07.png`, scaled to 64 px and tinted in code | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/particle-pack](https://kenney.nl/assets/particle-pack) |
+| Button tap | `tap.mp3` | Interface Sounds, `click_001.ogg`, mono, 8 dB quieter | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/interface-sounds](https://kenney.nl/assets/interface-sounds) |
+| New level | `levelup.mp3` | Music Jingles, `Pizzicato jingles/jingles_PIZZI10.ogg`, mono | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/music-jingles](https://kenney.nl/assets/music-jingles) |
+| End of a round | `roundend.mp3` | Music Jingles, `Steel jingles/jingles_STEEL02.ogg`, mono | Kenney | CC0 1.0 (`License.txt` in the pack) | [kenney.nl/assets/music-jingles](https://kenney.nl/assets/music-jingles) |
+| Background music ("Musik") | `music.mp3` | Happy Adventure (Loop), `happy_adveture.mp3`, mono at 64 kbit/s | tinyworlds | CC0 1.0 (license on the page) | [opengameart.org/content/happy-adventure-loop](https://opengameart.org/content/happy-adventure-loop) |
 | Text and headings | `Fredoka.ttf` | Fredoka (variable TTF); reused from math-soccer | The Fredoka Project Authors | SIL Open Font License 1.1 (text in `public/assets/OFL.txt`) | [fonts.google.com/specimen/Fredoka](https://fonts.google.com/specimen/Fredoka) |
 
-The propeller and whistle files come from the freesound preview of each sound, because a full download needs a login. Every sound also has a version made in code, which plays when its file cannot load.
+The propeller and whistle files come from the freesound preview of each sound, because a full download needs a login. Every sound also has a version made in code, which plays when its file cannot load. The music has none: when its file cannot load, the game plays no music. When a scenery picture cannot load, the round leaves it out and draws its own clouds.
 
-The app icons in `public/icons/` are drawn for this game. The plane, the solids, the shapes, the buildings, the crates, the parachutes, the field and the sky are drawn in code.
+The app icons in `public/icons/` are drawn for this game. The plane, the solids, the shapes, the buildings, the crates, the parachutes, the hills, the field and the sky are drawn in code.

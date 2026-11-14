@@ -1,6 +1,6 @@
 // Adapted from math-soccer src/audio/sfx.test.ts: the Mathe-Flieger sounds, one switch, no crowd and no loops.
 import { describe, expect, it } from 'vitest';
-import { BUNDLED, createSfx, MAX_GAIN, SOUND_NAMES, type AudioContextLike, type SoundName, type SoundSwitches } from './sfx';
+import { BUNDLED, createSfx, MAX_GAIN, MUSIC_FILE, MUSIC_GAIN, musicWanted, SOUND_NAMES, type AudioContextLike, type SoundName, type SoundSwitches } from './sfx';
 
 /** Minimal Web Audio stand-in that records started sources and gain values. */
 function fakeContext(decode: (data: ArrayBuffer) => Promise<AudioBuffer> = () => Promise.reject(new Error('no decoder'))) {
@@ -114,6 +114,9 @@ const SHAPES: Record<SoundName, { osc: number; noise: number }> = {
   cheer: { osc: 4, noise: 0 },
   coin: { osc: 2, noise: 0 },
   fanfare: { osc: 4, noise: 0 },
+  tap: { osc: 1, noise: 0 },
+  levelUp: { osc: 4, noise: 0 },
+  roundEnd: { osc: 6, noise: 0 },
 };
 
 describe('sfx (FR-043, research R13)', () => {
@@ -283,7 +286,7 @@ describe('sfx (FR-043, research R13)', () => {
       return { f, sfx, switches, fetched, clips };
     }
 
-    it('uses the files copied from math-soccer (coin, fanfare, the confetti pop for the hit) and the CC0 propeller, whistle and crate', () => {
+    it('uses the files copied from math-soccer (coin, fanfare, the confetti pop for the hit), the CC0 propeller, whistle and crate, and the Kenney tap and jingles', () => {
       expect(BUNDLED).toEqual({
         propeller: 'propeller.mp3',
         whistle: 'whistle.mp3',
@@ -291,6 +294,9 @@ describe('sfx (FR-043, research R13)', () => {
         crate: 'crate.mp3',
         coin: 'coin.mp3',
         fanfare: 'fanfare.mp3',
+        tap: 'tap.mp3',
+        levelUp: 'levelup.mp3',
+        roundEnd: 'roundend.mp3',
       });
     });
 
@@ -303,8 +309,11 @@ describe('sfx (FR-043, research R13)', () => {
         '/assets/coin.mp3',
         '/assets/crate.mp3',
         '/assets/fanfare.mp3',
+        '/assets/levelup.mp3',
         '/assets/pop.mp3',
         '/assets/propeller.mp3',
+        '/assets/roundend.mp3',
+        '/assets/tap.mp3',
         '/assets/whistle.mp3',
       ]);
     });
@@ -343,6 +352,97 @@ describe('sfx (FR-043, research R13)', () => {
       await offline.unlock();
       offline.fanfare();
       expect(g.started.filter((s) => s.kind === 'osc')).toHaveLength(4);
+    });
+  });
+
+  describe('music', () => {
+    it('plays only with "Musik" on, no paused round and the page in view', () => {
+      expect(musicWanted({ on: true, paused: false, hidden: false })).toBe(true);
+      expect(musicWanted({ on: false, paused: false, hidden: false })).toBe(false);
+      expect(musicWanted({ on: true, paused: true, hidden: false })).toBe(false);
+      expect(musicWanted({ on: true, paused: false, hidden: true })).toBe(false);
+    });
+
+    it('stays below MAX_GAIN', () => {
+      expect(MUSIC_GAIN).toBeLessThanOrEqual(MAX_GAIN / 4);
+    });
+
+    /** A context whose decoded music is a 10-second buffer; sources record loop, start offset and stop. */
+    function setupMusic(fail = false) {
+      const f = fakeContext(async () => ({ duration: 10, music: true }) as unknown as AudioBuffer);
+      const sources: Array<{ loop: boolean; offset: number | undefined; stopped: boolean }> = [];
+      const make = f.ctx.createBufferSource.bind(f.ctx);
+      Object.defineProperty(f.ctx, 'createBufferSource', {
+        value: () => {
+          const src = make() as unknown as { buffer: unknown; loop: boolean; start: (at: number, offset?: number) => void; stop: () => void };
+          const start = src.start;
+          src.start = (at: number, offset?: number) => {
+            start(at);
+            if ((src.buffer as { music?: boolean } | null)?.music) {
+              const rec = { loop: src.loop, offset, stopped: false };
+              sources.push(rec);
+              src.stop = () => {
+                rec.stopped = true;
+              };
+            }
+          };
+          return src;
+        },
+      });
+      const fetched: string[] = [];
+      const sfx = createSfx({
+        sound: () => ({ effects: true }),
+        createContext: () => f.ctx,
+        clips: (file) => `/assets/${file}`,
+        fetchClip: async (url) => {
+          fetched.push(url);
+          if (fail && url.endsWith(MUSIC_FILE)) throw new Error('missing');
+          return new ArrayBuffer(1);
+        },
+      });
+      return { f, sfx, sources, fetched };
+    }
+
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it('waits for the unlock gesture, then loops the file and fades it in to MUSIC_GAIN', async () => {
+      const { f, sfx, sources, fetched } = setupMusic();
+      sfx.setMusic(true);
+      await flush();
+      expect(fetched.filter((u) => u.endsWith(MUSIC_FILE))).toEqual([]);
+      expect(sfx.musicPlaying).toBe(false);
+      await sfx.unlock();
+      await flush();
+      expect(fetched.filter((u) => u.endsWith(MUSIC_FILE))).toHaveLength(1);
+      expect(sfx.musicPlaying).toBe(true);
+      expect(sources).toEqual([{ loop: true, offset: 0, stopped: false }]);
+      expect(Math.max(...f.gains)).toBeLessThanOrEqual(MAX_GAIN);
+      expect(f.gains).toContain(MUSIC_GAIN);
+    });
+
+    it('stops when no longer wanted and goes on from where it stopped', async () => {
+      const { f, sfx, sources } = setupMusic();
+      sfx.setMusic(true);
+      await sfx.unlock();
+      await flush();
+      (f.ctx as { currentTime: number }).currentTime = 13;
+      sfx.setMusic(false);
+      expect(sfx.musicPlaying).toBe(false);
+      expect(sources[0]!.stopped).toBe(true);
+      sfx.setMusic(true);
+      expect(sources).toHaveLength(2);
+      expect(sources[1]!.offset).toBeCloseTo(3);
+    });
+
+    it('stays silent when the file fails, and keeps the sounds working', async () => {
+      const { f, sfx, sources } = setupMusic(true);
+      sfx.setMusic(true);
+      await sfx.unlock();
+      await flush();
+      expect(sfx.musicPlaying).toBe(false);
+      expect(sources).toEqual([]);
+      expect(() => sfx.tap()).not.toThrow();
+      expect(f.started.length).toBeGreaterThan(0);
     });
   });
 });

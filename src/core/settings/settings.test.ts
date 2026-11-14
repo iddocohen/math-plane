@@ -36,7 +36,7 @@ describe('defaultSettings (data-model "Settings", defaults as listed)', () => {
     for (const side of SIDES) expect(s.buildings.sides[side]).toBe(true);
     expect(s.buildings.mixedPieces).toBe(true);
     expect(s.round).toEqual({ bombs: 10, tasks: 5 });
-    expect(s.sound).toEqual({ effects: true, speech: false });
+    expect(s.sound).toEqual({ effects: true, speech: false, music: true });
     expect(s.numberPad).toBe('auto');
     expect(s.showClock).toBe(false);
     expect(s.showRecords).toBe(true);

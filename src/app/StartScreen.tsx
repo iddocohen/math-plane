@@ -11,13 +11,17 @@
  * With the Hangar on (FR-044), a "Hangar" button (K) and the star total (`data-testid="star-total"`) show below the
  * start buttons; with it off, both are hidden.
  *
+ * Behind it all, StartScenery draws the sky, the hills and the plane flying across; it takes no taps.
+ *
  * Notices: when stored data was reset on load (`data-testid="start-notice-reset"`), or a save failed during play
  * (`data-testid="start-notice-save"`), a short note shows below the title with "OK" to close it. It never blocks the
  * start buttons or their keys.
  */
 import type { ReactNode } from 'react';
+import type { HangarLook } from '../core/rewards/hangar';
 import type { Mode } from '../core/types';
 import { t } from '../i18n';
+import { StartScenery } from './StartScenery';
 
 /** Asks the browser for fullscreen; a refusal leaves the game as it is. */
 export function requestFullscreen(): void {
@@ -42,15 +46,18 @@ interface Props {
   hangar?: { stars: number; onOpen: () => void } | null;
   /** Short notes for the parent, each a list of lines, closed with "OK"; nothing shows when empty. */
   notices?: ReadonlyArray<{ id: string; lines: readonly string[]; onDismiss: () => void }>;
+  /** The plane's look for the plane flying across the picture behind the screen; no plane when null. */
+  look?: HangarLook | null;
 }
 
 const KEY: Record<Mode, string> = { treffer: '1', bauenMalen: '2' };
 
-export function StartScreen({ modes, onStart, gear, hangar = null, notices = [] }: Props) {
+export function StartScreen({ modes, onStart, gear, hangar = null, notices = [], look = null }: Props) {
   const text = t();
   const canFullscreen = document.fullscreenEnabled === true;
   return (
     <main className="start" lang="de" data-testid="start">
+      <StartScenery look={look} />
       <div className="top-right">
         {gear}
         {canFullscreen && (

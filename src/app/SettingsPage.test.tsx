@@ -158,7 +158,7 @@ describe('SettingsPage (T060, FR-051)', () => {
     fireEvent.click(within(group('Hangar')).getByLabelText(L.hangar));
     fireEvent.click(saveButton());
     const s = loadSettings(kv).value;
-    expect(s.sound).toEqual({ effects: false, speech: true });
+    expect(s.sound).toEqual({ effects: false, speech: true, music: true });
     expect([s.numberPad, s.showClock, s.showRecords, s.pointAfterFullHelp, s.hangar]).toEqual(['never', true, false, false, false]);
   });
 

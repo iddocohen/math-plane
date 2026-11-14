@@ -31,7 +31,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import { assetUrl, fontReady } from '../assets';
-import { createSfx } from '../audio/sfx';
+import { createSfx, musicWanted } from '../audio/sfx';
 import { createSpeaker } from '../audio/speaker';
 import { RoundController, type RoundSummary } from '../core/round/RoundController';
 import type { ModeRules } from '../core/round/rules';
@@ -114,6 +114,9 @@ function resetNoteLines(reasons: ReturnType<Persistence['resetReasons']>): strin
   return lines;
 }
 
+/** How long the level-up jingle lasts; a round end within this time plays no second jingle. */
+const LEVEL_UP_JINGLE_MS = 1500;
+
 function createApp() {
   const search = window.location.search;
   const persistence = createPersistence(localStorageKeyValue());
@@ -186,6 +189,9 @@ export function App() {
   const [host] = useState(newGameHost);
   const parentRef = useRef<HTMLDivElement | null>(null);
 
+  // When the last level-up jingle started, so the round-end jingle does not play over it.
+  const lastLevelUp = useRef(-Infinity);
+
   /** Creates a round of `mode`, continuing `stored` when it fits. */
   const makeRound = useCallback(
     (mode: Mode, stored: StoredRound | null = null): Round => {
@@ -208,8 +214,15 @@ export function App() {
           // The settings the round uses now: the parent may have changed them during the round (FR-054).
           saves.report(persistence.recordAttempt(e.record, persistence.settings()));
         } else if (e.type === 'roundEnded') {
-          if (!e.summary.quit) saves.report(persistence.saveRecords(e.summary.records));
+          if (!e.summary.quit) {
+            saves.report(persistence.saveRecords(e.summary.records));
+            // A level up just before the end already played its jingle.
+            if (performance.now() - lastLevelUp.current > LEVEL_UP_JINGLE_MS) sfx.roundEnd();
+          }
           setSummary(e.summary);
+        } else if (e.type === 'levelUp') {
+          lastLevelUp.current = performance.now();
+          sfx.levelUp();
         } else if (e.type === 'bombLanded') {
           if (e.hit) sfx.hit();
           else sfx.miss();
@@ -318,6 +331,36 @@ export function App() {
 
   useEffect(() => () => gameRef.current?.destroy(), []);
 
+  // Audio unlocks on the first key press or tap anywhere (also on the start screen, for the music), and again when
+  // the page comes back into view. Every button taps softly.
+  useEffect(() => {
+    const remove = sfx.installUnlock(document);
+    const onClick = (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest('button')) sfx.tap();
+    };
+    document.addEventListener('click', onClick);
+    return () => {
+      remove();
+      document.removeEventListener('click', onClick);
+    };
+  }, [sfx]);
+
+  // The music (sound.music): on the start screen and in a running round; it stops while the round is paused or the
+  // page is hidden.
+  useEffect(() => {
+    const update = () =>
+      sfx.setMusic(musicWanted({ on: settings.sound.music, paused: round?.controller.state().phase === 'paused', hidden: document.visibilityState === 'hidden' }));
+    update();
+    const unsubscribe = round?.controller.subscribe((e) => {
+      if (e.type === 'phaseChanged') update();
+    });
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      unsubscribe?.();
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, [sfx, round, settings.sound.music]);
+
   // Play time stops while the page is hidden; a hidden page also pauses the bombs in the air.
   useEffect(() => {
     if (round === null) return;
@@ -346,12 +389,14 @@ export function App() {
   // A purchase or a choice in the Hangar: stored, and shown at once on the plane of a paused round (FR-045).
   const changeHangar = useCallback(
     (next: HangarData) => {
+      // A purchase spends stars; choosing an item does not.
+      if (next.stars < persistence.hangar().stars) sfx.coin();
       saves.report(persistence.saveHangar(next));
       const stored = persistence.hangar();
       setHangar(stored);
       gameRef.current?.showLook(lookOf(stored));
     },
-    [persistence, saves],
+    [persistence, saves, sfx],
   );
 
   const closeOverlay = useCallback(() => {
@@ -515,6 +560,7 @@ export function App() {
           gear={gear}
           hangar={settings.hangar ? { stars: hangar.stars, onOpen: openHangar } : null}
           notices={notices}
+          look={lookOf(hangar)}
         />
       ) : (
         <ErrorBoundary>

@@ -349,6 +349,7 @@ export const de = {
       tasks: 'Aufgaben pro Runde',
       soundEffects: 'Geräusche',
       soundSpeech: 'Vorlesen',
+      soundMusic: 'Musik',
       numberPad: 'Zahlenfeld',
       showClock: 'Uhr zeigen',
       showRecords: 'Rekorde zeigen',

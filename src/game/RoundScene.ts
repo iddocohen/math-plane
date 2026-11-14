@@ -23,7 +23,7 @@ import type { BombStyle } from './effects';
 import type { HangarLook } from '../core/rewards/hangar';
 import { EffectsView, loadParticleImages } from './EffectsView';
 import { DEFAULT_LOOK, PlaneView } from './PlaneView';
-import { SkyView } from './SkyView';
+import { loadSceneryImages, SkyView } from './SkyView';
 import { TASK_VIEWS, type SceneKey, type TaskView, type TaskViewContext, type TaskViewFactory } from './taskViews';
 
 /** How long a hit, a miss or a solved task shows before the round goes on. */
@@ -64,6 +64,7 @@ export class RoundScene extends Phaser.Scene {
 
   preload(): void {
     loadParticleImages(this);
+    loadSceneryImages(this);
   }
 
   create(): void {

@@ -43,8 +43,8 @@ const GROUP: Record<HangarCategory, 'color' | 'tail' | 'smoke' | 'bomb' | 'hat'>
   hat: 'hat',
 };
 
-/** The plane drawn into a canvas; redrawn when the look changes. */
-function PlanePicture({ look, width, height }: { look: HangarLook; width: number; height: number }): ReactElement {
+/** The plane drawn into a canvas; redrawn when the look changes. The start screen shows it too. */
+export function PlanePicture({ look, width, height, className = 'hangar-plane' }: { look: HangarLook; width: number; height: number; className?: string }): ReactElement {
   const ref = useRef<HTMLCanvasElement>(null);
   const { color, tail, hat } = look;
   const smoke = look.smoke?.join(' ') ?? '';
@@ -58,7 +58,7 @@ function PlanePicture({ look, width, height }: { look: HangarLook; width: number
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     drawPlanePicture(ctx, width, height, { color, tail, hat, smoke: smoke === '' ? null : smoke.split(' ') });
   }, [color, tail, hat, smoke, width, height]);
-  return <canvas ref={ref} className="hangar-plane" style={{ width, height }} aria-hidden="true" />;
+  return <canvas ref={ref} className={className} style={{ width, height }} aria-hidden="true" />;
 }
 
 /** Bright colors of each bomb style's small picture. */

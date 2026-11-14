@@ -254,6 +254,7 @@ export function SettingsPage({ persistence, onSaved, onClose, now = () => new Da
 
         <Group title={S.groups.sound}>
           <Check label={L.soundEffects} checked={draft.sound.effects} onChange={(v) => set('sound', { ...draft.sound, effects: v })} />
+          <Check label={L.soundMusic} checked={draft.sound.music} onChange={(v) => set('sound', { ...draft.sound, music: v })} />
           <Check label={L.soundSpeech} checked={draft.sound.speech} onChange={(v) => set('sound', { ...draft.sound, speech: v })} />
         </Group>
 

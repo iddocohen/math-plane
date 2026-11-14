@@ -28,7 +28,7 @@ export function defaultSettings(): Settings {
       mixedPieces: true,
     },
     round: { bombs: 10, tasks: 5 },
-    sound: { effects: true, speech: false },
+    sound: { effects: true, speech: false, music: true },
     numberPad: 'auto',
     showClock: false,
     showRecords: true,

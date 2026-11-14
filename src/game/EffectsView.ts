@@ -23,6 +23,7 @@ const IMAGE_KEY: Record<ParticleImage, string> = {
   sparkle: 'fx-img-sparkle',
   flare: 'fx-img-flare',
   light: 'fx-img-light',
+  smoke: 'fx-img-smoke',
 };
 
 /** Queues the particle images that are not loaded yet; call it in the scene's preload. */

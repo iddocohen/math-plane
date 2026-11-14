@@ -1,15 +1,36 @@
 /**
  * The backdrop of every round (FR-001, prototype `drawBg`): a sky gradient with drifting clouds, a band of hills, and
  * the grass field with a faint square grid. The sky, hills and field are drawn once into a cached texture; each cloud
- * is an image of one cloud texture that drifts to the right and comes back in on the left.
+ * is an image that drifts to the right and comes back in on the left.
+ *
+ * The scenery (scenery.ts) stands on the hills: Kenney trees, bushes, fences and a sun, bundled files that the scene
+ * loads in its preload (`loadSceneryImages`). The clouds are Kenney clouds too. A picture whose file did not load is
+ * left out, and the clouds fall back to the cloud drawn in code.
  */
 import Phaser from 'phaser';
+import { assetUrl } from '../assets';
 import { CachedTexture } from './cachedTexture';
 import { CSS } from './palette';
+import { hillY, SCENERY_FILES, sceneryLayout, type SceneryPicture } from './scenery';
 import { DEPTH, FIELD_GRID, SKY_BOTTOM, WORLD_HEIGHT, WORLD_WIDTH } from './world';
 
 const BACKDROP = 'sky-backdrop';
 const CLOUD = 'sky-cloud';
+/** The Kenney clouds (cloud1.png to cloud4.png), 300 pixels wide. */
+export const CLOUD_FILES = ['cloud1.png', 'cloud2.png', 'cloud3.png', 'cloud4.png'] as const;
+const CLOUD_FILE_WIDTH = 300;
+const cloudKey = (i: number) => `sky-cloud-${i}`;
+const sceneryKey = (p: SceneryPicture) => `sky-${p}`;
+
+/** Queues the scenery and cloud pictures that are not loaded yet; call it in the scene's preload. */
+export function loadSceneryImages(scene: Phaser.Scene): void {
+  for (const [picture, { file }] of Object.entries(SCENERY_FILES) as Array<[SceneryPicture, { file: string }]>) {
+    if (!scene.textures.exists(sceneryKey(picture))) scene.load.image(sceneryKey(picture), assetUrl(file));
+  }
+  CLOUD_FILES.forEach((file, i) => {
+    if (!scene.textures.exists(cloudKey(i))) scene.load.image(cloudKey(i), assetUrl(file));
+  });
+}
 /** The cloud texture's size at scale 1. */
 const CLOUD_SIZE = { width: 150, height: 90 } as const;
 /** The prototype's cloud speed, 12 px per second at scale 1 in a 1024-wide world. */
@@ -47,7 +68,7 @@ function drawBackdrop(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = CSS.hills;
   ctx.beginPath();
   ctx.moveTo(0, SKY_BOTTOM);
-  for (let x = 0; x <= WORLD_WIDTH; x += 40) ctx.lineTo(x, SKY_BOTTOM - 34 + Math.sin(x / 190) * 22);
+  for (let x = 0; x <= WORLD_WIDTH; x += 20) ctx.lineTo(x, hillY(x));
   ctx.lineTo(WORLD_WIDTH, SKY_BOTTOM + 20);
   ctx.lineTo(0, SKY_BOTTOM + 20);
   ctx.fill();
@@ -73,6 +94,8 @@ function drawBackdrop(ctx: CanvasRenderingContext2D): void {
 
 /** The cloud is drawn opaque and shown at CLOUD_ALPHA, so the circles do not show where they overlap. */
 const CLOUD_ALPHA = 0.85;
+/** The Kenney clouds have their own shading and show almost opaque. */
+const KENNEY_CLOUD_ALPHA = 0.95;
 
 function drawCloud(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = '#ffffff';
@@ -96,12 +119,20 @@ export class SkyView {
     // Drawn once per session; later rounds reuse the textures.
     if (!scene.textures.exists(BACKDROP)) new CachedTexture(scene, BACKDROP, WORLD_WIDTH, WORLD_HEIGHT).draw('backdrop', drawBackdrop);
     scene.add.image(0, 0, BACKDROP).setOrigin(0, 0).setDepth(DEPTH.sky);
+    for (const item of sceneryLayout()) {
+      const key = sceneryKey(item.picture);
+      if (!scene.textures.exists(key)) continue;
+      scene.add.image(item.x, item.y, key).setOrigin(0, 0).setDisplaySize(item.width, item.height).setDepth(DEPTH.sky);
+    }
     if (!scene.textures.exists(CLOUD)) new CachedTexture(scene, CLOUD, CLOUD_SIZE.width, CLOUD_SIZE.height, 2).draw('cloud', drawCloud);
-    this.clouds = cloudLayout(rand).map((spec) => ({
-      spec,
-      x: spec.x,
-      image: scene.add.image(spec.x, spec.y, CLOUD).setOrigin(0, 0.5).setScale(spec.scale / 2).setAlpha(CLOUD_ALPHA).setDepth(DEPTH.clouds),
-    }));
+    const kenney = CLOUD_FILES.every((_, i) => scene.textures.exists(cloudKey(i)));
+    this.clouds = cloudLayout(rand).map((spec, i) => {
+      // A Kenney cloud as wide as the drawn one at the same scale.
+      const image = kenney
+        ? scene.add.image(spec.x, spec.y, cloudKey(i % CLOUD_FILES.length)).setScale((spec.scale * CLOUD_SIZE.width) / CLOUD_FILE_WIDTH).setAlpha(KENNEY_CLOUD_ALPHA)
+        : scene.add.image(spec.x, spec.y, CLOUD).setScale(spec.scale / 2).setAlpha(CLOUD_ALPHA);
+      return { spec, x: spec.x, image: image.setOrigin(0, 0.5).setDepth(DEPTH.clouds) };
+    });
   }
 
   /** Moves the clouds on by `ms` of play time. */

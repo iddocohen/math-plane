@@ -24,7 +24,7 @@ export const PARTICLE_TEXTURE_SIZE = 32;
 /** The particle images are this many pixels wide. */
 export const PARTICLE_IMAGE_SIZE = 64;
 /** How much of its width each particle image fills with its visible middle. */
-export const IMAGE_FILL: Record<ParticleImage, number> = { twinkle: 0.3, star: 0.6, sparkle: 0.22, flare: 0.15, light: 0.6 };
+export const IMAGE_FILL: Record<ParticleImage, number> = { twinkle: 0.3, star: 0.6, sparkle: 0.22, flare: 0.15, light: 0.6, smoke: 0.7 };
 
 /** The scale of a particle's image for the scale `scale` of its drawn shape. */
 export function imageScale(image: ParticleImage, scale: number): number {
@@ -94,12 +94,16 @@ function confetti(rand: () => number, x: number, y: number, n: number): Particle
   }));
 }
 
-/** Soft dots that drift, slow down and grow, `n` of them (smoke and bubbles). */
-function puffs(rand: () => number, x: number, y: number, n: number, colors: readonly number[], speed: number, diameter: number): ParticleInit[] {
+/**
+ * Soft dots that drift, slow down and grow, `n` of them: smoke (`smoke` true, drawn with the Kenney smoke puff and
+ * turning slowly) or bubbles.
+ */
+function puffs(rand: () => number, x: number, y: number, n: number, colors: readonly number[], speed: number, diameter: number, smoke = false): ParticleInit[] {
   return Array.from({ length: n }, (_, i) => {
     const size = scaleFor((diameter + rand() * diameter * 0.8) * K);
     return {
       shape: 'dot',
+      ...(smoke ? { image: 'smoke' as const, rotation: rand() * 6, spin: spread(rand, 1) } : {}),
       ...thrown(rand, x, y, speed, 20),
       life: 800 + rand() * 700,
       size,
@@ -146,7 +150,7 @@ export function hitBurst(style: BombStyle, x: number, y: number, rand: () => num
 
 /** The soft puff of smoke on a missed target or a removed crate. */
 export function smokePuff(x: number, y: number, rand: () => number): ParticleInit[] {
-  return puffs(rand, x, y, 12, SMOKE, 90, 20);
+  return puffs(rand, x, y, 12, SMOKE, 90, 20, true);
 }
 
 /** One puff of the plane's smoke trail at (x, y), in the trail color `tint`. */
@@ -154,8 +158,11 @@ export function trailPuff(x: number, y: number, tint: number, rand: () => number
   const size = scaleFor(16 * K);
   return {
     shape: 'dot',
+    image: 'smoke',
     x,
     y: y + spread(rand, 4),
+    rotation: rand() * 6,
+    spin: spread(rand, 1.5),
     vx: -40 * K,
     vy: spread(rand, 10) * K,
     life: TRAIL_LIFE_MS,

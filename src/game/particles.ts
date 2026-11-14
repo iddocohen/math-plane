@@ -16,9 +16,9 @@ export type ParticleShape = 'dot' | 'star' | 'piece';
 
 /**
  * The particle images from the Kenney Particle Pack (src/assets.ts `PARTICLE_FILES`): a small soft twinkle, a sharp
- * four-point star, a bright sparkle, a flash and a ring of light. No fire (FR-042).
+ * four-point star, a bright sparkle, a flash, a ring of light and a soft puff of smoke. No fire (FR-042).
  */
-export type ParticleImage = 'twinkle' | 'star' | 'sparkle' | 'flare' | 'light';
+export type ParticleImage = 'twinkle' | 'star' | 'sparkle' | 'flare' | 'light' | 'smoke';
 
 export interface ParticleInit {
   /** The shape drawn in code; it also stands in for `image` while the image is not loaded. */

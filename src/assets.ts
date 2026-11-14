@@ -17,6 +17,7 @@ export const PARTICLE_FILES: Record<ParticleImage, string> = {
   sparkle: 'star_06.png',
   flare: 'flare_01.png',
   light: 'light_01.png',
+  smoke: 'smoke_07.png',
 };
 
 /** Fredoka with the system fonts as fallback; the same list as `font-family` in src/app/styles.css. */

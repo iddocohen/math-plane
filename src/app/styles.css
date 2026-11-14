@@ -188,11 +188,16 @@ button:focus-visible {
   transform: translateX(-50%);
 }
 
-/* Nothing moves when the system asks for reduced motion: the clouds stay where they are and the plane waits. */
+/* Nothing moves when the system asks for reduced motion: each cloud stays at its own place in the sky (--still-left,
+   set in StartScenery.tsx) and the plane waits. */
 @media (prefers-reduced-motion: reduce) {
   .start-cloud,
   .start-plane-picture {
     animation: none;
+  }
+
+  .start-cloud {
+    left: var(--still-left, 0);
   }
 
   .start-plane {

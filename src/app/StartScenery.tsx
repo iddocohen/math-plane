@@ -28,12 +28,15 @@ const HORIZON: ReadonlyArray<[SceneryPicture, number, number]> = [
   ['treeLong', 97, 14],
 ];
 
-/** The drifting clouds, one per file in CLOUD_FILES: height in % of the screen, % from the top, seconds per crossing, and a start delay. */
-const CLOUDS: ReadonlyArray<[number, number, number, number]> = [
-  [11, 6, 70, -10],
-  [13, 16, 95, -60],
-  [9, 24, 80, -35],
-  [12, 10, 110, -85],
+/**
+ * The drifting clouds, each with a file from CLOUD_FILES in turn: height in % of the screen, % from the top, seconds
+ * per crossing, a start delay, and where it stays in % of the width when the system asks for reduced motion.
+ */
+const CLOUDS: ReadonlyArray<[number, number, number, number, number]> = [
+  [11, 6, 70, -10, 24],
+  [13, 16, 95, -60, 72],
+  [9, 24, 80, -35, 4],
+  [12, 10, 110, -85, 86],
 ];
 
 /** Memoized: the start screen re-renders often, and the scenery changes only with the plane's look. */
@@ -41,18 +44,21 @@ export const StartScenery = memo(function StartScenery({ look }: { look: HangarL
   return (
     <div className="start-scenery" aria-hidden="true">
       <img className="start-sun" src={assetUrl(SCENERY_FILES.sun.file)} alt="" />
-      {CLOUD_FILES.map((file, i) => {
-        const [height, top, seconds, delay] = CLOUDS[i]!;
-        return (
-          <img
-            key={file}
-            className="start-cloud"
-            src={assetUrl(file)}
-            alt=""
-            style={{ height: `${height}vh`, top: `${top}%`, animationDuration: `${seconds}s`, animationDelay: `${delay}s` }}
-          />
-        );
-      })}
+      {CLOUDS.map(([height, top, seconds, delay, still], i) => (
+        <img
+          key={i}
+          className="start-cloud"
+          src={assetUrl(CLOUD_FILES[i % CLOUD_FILES.length] ?? '')}
+          alt=""
+          style={{
+            height: `${height}vh`,
+            top: `${top}%`,
+            animationDuration: `${seconds}s`,
+            animationDelay: `${delay}s`,
+            ['--still-left' as string]: `${still}%`,
+          }}
+        />
+      ))}
       {look && (
         <div className="start-plane">
           <PlanePicture look={look} width={150} height={66} className="start-plane-picture" />

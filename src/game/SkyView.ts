@@ -17,8 +17,10 @@ import { DEPTH, FIELD_GRID, SKY_BOTTOM, WORLD_HEIGHT, WORLD_WIDTH } from './worl
 
 const BACKDROP = 'sky-backdrop';
 const CLOUD = 'sky-cloud';
-/** The width of the Kenney cloud files. */
+/** The width of the Kenney cloud files, used when a loaded texture does not tell its own. */
 const CLOUD_FILE_WIDTH = 300;
+/** The backdrop texture of each game, kept so its signature gate sees every round's set of scenery pictures. */
+const backdrops = new WeakMap<Phaser.Textures.TextureManager, CachedTexture>();
 const cloudKey = (i: number) => `sky-cloud-${i}`;
 const sceneryKey = (p: SceneryPicture) => `sky-${p}`;
 
@@ -117,37 +119,45 @@ function drawCloud(ctx: CanvasRenderingContext2D): void {
   }
 }
 
+/** The width of a loaded cloud file, or CLOUD_FILE_WIDTH when the texture has none. */
+function cloudFileWidth(scene: Phaser.Scene, key: string): number {
+  const width = scene.textures.get(key).getSourceImage().width;
+  return width > 0 ? width : CLOUD_FILE_WIDTH;
+}
+
 export class SkyView {
-  private readonly clouds: Array<{ image: Phaser.GameObjects.Image; spec: CloudSpec; x: number }>;
+  private readonly clouds: Array<{ image: Phaser.GameObjects.Image; spec: CloudSpec; x: number; width: number }>;
 
   constructor(scene: Phaser.Scene, rand: () => number = Math.random) {
-    // Drawn once per session; later rounds reuse the textures. The backdrop is drawn again only when another set of
-    // scenery pictures has loaded, recorded in the texture's customData.
+    // Drawn once per session; later rounds reuse the textures. The backdrop's signature is the set of loaded scenery
+    // pictures, so it is drawn again only when another set has loaded.
     const scenery = sceneryLayout()
       .filter((item) => scene.textures.exists(sceneryKey(item.picture)))
       .map((item) => ({ ...item, image: scene.textures.get(sceneryKey(item.picture)).getSourceImage() as CanvasImageSource }));
     const loaded = [...new Set(scenery.map((p) => p.picture))].join(' ');
-    const drawn = scene.textures.exists(BACKDROP) ? (scene.textures.get(BACKDROP).customData as { scenery?: string }).scenery : undefined;
-    if (drawn !== loaded) {
-      new CachedTexture(scene, BACKDROP, WORLD_WIDTH, WORLD_HEIGHT).draw('backdrop', (ctx) => drawBackdrop(ctx, scenery));
-      (scene.textures.get(BACKDROP).customData as { scenery?: string }).scenery = loaded;
+    let backdrop = backdrops.get(scene.textures);
+    if (!backdrop || !scene.textures.exists(BACKDROP)) {
+      backdrop = new CachedTexture(scene, BACKDROP, WORLD_WIDTH, WORLD_HEIGHT);
+      backdrops.set(scene.textures, backdrop);
     }
+    backdrop.draw(loaded, (ctx) => drawBackdrop(ctx, scenery));
     scene.add.image(0, 0, BACKDROP).setOrigin(0, 0).setDepth(DEPTH.sky);
     if (!scene.textures.exists(CLOUD)) new CachedTexture(scene, CLOUD, CLOUD_SIZE.width, CLOUD_SIZE.height, 2).draw('cloud', drawCloud);
     const kenney = CLOUD_FILES.every((_, i) => scene.textures.exists(cloudKey(i)));
     this.clouds = cloudLayout(rand).map((spec, i) => {
       // A Kenney cloud as wide as the drawn one at the same scale.
+      const key = cloudKey(i % CLOUD_FILES.length);
       const image = kenney
-        ? scene.add.image(spec.x, spec.y, cloudKey(i % CLOUD_FILES.length)).setScale((spec.scale * CLOUD_SIZE.width) / CLOUD_FILE_WIDTH).setAlpha(KENNEY_CLOUD_ALPHA)
+        ? scene.add.image(spec.x, spec.y, key).setScale((spec.scale * CLOUD_SIZE.width) / cloudFileWidth(scene, key)).setAlpha(KENNEY_CLOUD_ALPHA)
         : scene.add.image(spec.x, spec.y, CLOUD).setScale(spec.scale / 2).setAlpha(CLOUD_ALPHA);
-      return { spec, x: spec.x, image: image.setOrigin(0, 0.5).setDepth(DEPTH.clouds) };
+      return { spec, x: spec.x, width: image.displayWidth, image: image.setOrigin(0, 0.5).setDepth(DEPTH.clouds) };
     });
   }
 
   /** Moves the clouds on by `ms` of play time. */
   update(ms: number): void {
     for (const c of this.clouds) {
-      c.x = driftX(c.x, (ms / 1000) * CLOUD_SPEED * c.spec.scale, CLOUD_SIZE.width * c.spec.scale);
+      c.x = driftX(c.x, (ms / 1000) * CLOUD_SPEED * c.spec.scale, c.width);
       c.image.x = c.x;
     }
   }

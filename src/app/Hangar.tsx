@@ -142,6 +142,9 @@ export function Hangar({ hangar, onChange, onBack }: Props): ReactElement {
     if (next) onChange(next, true);
   };
 
+  /** A tap on this item buys it without asking; the button then plays the coin sound and no tap (tapSound.ts). */
+  const buysAtOnce = (item: HangarItem) => !isOwned(hangar, item.id) && canBuy(hangar, item.id) && item.price <= ASK_ABOVE;
+
   const tap = (item: HangarItem) => {
     if (isOwned(hangar, item.id)) onChange(choose(hangar, item.id), false);
     else if (!canBuy(hangar, item.id)) return;
@@ -188,6 +191,7 @@ export function Hangar({ hangar, onChange, onBack }: Props): ReactElement {
                     data-locked={String(!open)}
                     aria-disabled={open ? undefined : 'true'}
                     aria-pressed={owned ? isChosen : undefined}
+                    data-no-tap={buysAtOnce(item) ? '' : undefined}
                     onClick={() => tap(item)}
                   >
                     <ItemPicture item={item} ids={ids} />
@@ -206,7 +210,7 @@ export function Hangar({ hangar, onChange, onBack }: Props): ReactElement {
           <div className="parent-menu" role="dialog" aria-modal="true" data-testid="buy-question" aria-labelledby="buy-question-text">
             <p id="buy-question-text">{H.buyQuestion(question.price)}</p>
             <div className="round-end-buttons">
-              <button type="button" className="primary" onClick={() => answer(true)}>
+              <button type="button" className="primary" data-no-tap="" onClick={() => answer(true)}>
                 {H.yes}
               </button>
               <button type="button" onClick={() => answer(false)}>

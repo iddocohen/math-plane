@@ -7,11 +7,19 @@ function fakeContext(decode: (data: ArrayBuffer) => Promise<AudioBuffer> = () =>
   const started: Array<{ kind: 'osc' | 'noise'; at: number; type?: string; buffer?: unknown }> = [];
   const gains: number[] = [];
   const silent: number[] = [];
+  /** The gain parameters, in the order their nodes were made. */
+  const gainParams: Array<{ value: number; cancelled: number }> = [];
   let state: AudioContextState = 'suspended';
+  const events = new EventTarget();
   const param = (log: number[]) => ({
     value: 0,
+    cancelled: 0,
     setValueAtTime(v: number) {
       log.push(v);
+      return this;
+    },
+    cancelScheduledValues() {
+      this.cancelled++;
       return this;
     },
     linearRampToValueAtTime(v: number) {
@@ -34,7 +42,12 @@ function fakeContext(decode: (data: ArrayBuffer) => Promise<AudioBuffer> = () =>
     resume: async () => {
       state = 'running';
     },
-    createGain: () => ({ ...node(), gain: param(gains) }),
+    addEventListener: (type: string, listener: () => void) => events.addEventListener(type, listener),
+    createGain: () => {
+      const gain = param(gains);
+      gainParams.push(gain);
+      return { ...node(), gain };
+    },
     createOscillator: () => {
       const o = { ...node(), type: 'sine', frequency: param([]), start: (at: number) => started.push({ kind: 'osc', at, type: o.type }), stop() {} };
       return o;
@@ -53,7 +66,12 @@ function fakeContext(decode: (data: ArrayBuffer) => Promise<AudioBuffer> = () =>
     decodeAudioData: decode,
     createBiquadFilter: () => ({ ...node(), type: 'lowpass', frequency: param([]), Q: param([]) }),
   };
-  return { ctx: ctx as unknown as AudioContextLike, started, gains, silent };
+  /** Changes the state without a gesture, as the browser does, and tells the listeners. */
+  const setState = (next: AudioContextState) => {
+    state = next;
+    events.dispatchEvent(new Event('statechange'));
+  };
+  return { ctx: ctx as unknown as AudioContextLike, started, gains, silent, gainParams, setState };
 }
 
 /**
@@ -414,6 +432,7 @@ describe('sfx (FR-043, research R13)', () => {
 
     /** A context whose decoded music is a 10-second buffer; sources record loop, start offset and stop. */
     function setupMusic(fail = false, slowClips = false) {
+      const failing = { music: fail };
       const f = fakeContext(async () => ({ duration: 10, music: true }) as unknown as AudioBuffer);
       const sources: Array<{ loop: boolean; offset: number | undefined; stopped: boolean }> = [];
       const make = f.ctx.createBufferSource.bind(f.ctx);
@@ -441,13 +460,13 @@ describe('sfx (FR-043, research R13)', () => {
         clips: (file) => `/assets/${file}`,
         fetchClip: async (url) => {
           fetched.push(url);
-          if (fail && url.endsWith(MUSIC_FILE)) throw new Error('missing');
+          if (failing.music && url.endsWith(MUSIC_FILE)) throw new Error('missing');
           // Sound files that never arrive, to show the music does not wait for them.
           if (slowClips && !url.endsWith(MUSIC_FILE)) return new Promise<ArrayBuffer>(() => {});
           return new ArrayBuffer(1);
         },
       });
-      return { f, sfx, sources, fetched };
+      return { f, sfx, sources, fetched, failing };
     }
 
     const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -495,6 +514,61 @@ describe('sfx (FR-043, research R13)', () => {
       expect(sources).toEqual([]);
       expect(() => sfx.tap()).not.toThrow();
       expect(f.started.length).toBeGreaterThan(0);
+    });
+
+    it('fades out from the level it has, without a jump, when stopped during the fade-in', async () => {
+      const { f, sfx } = setupMusic();
+      sfx.setMusic(true);
+      await sfx.unlock();
+      await flush();
+      const level = f.gainParams.at(-1)!;
+      // Halfway through the fade-in.
+      level.value = MUSIC_GAIN / 2;
+      const before = f.gains.length;
+      sfx.setMusic(false);
+      expect(level.cancelled).toBe(1);
+      expect(f.gains.slice(before)).toEqual([MUSIC_GAIN / 2, 0.001]);
+    });
+
+    it('starts again when the context runs again by itself', async () => {
+      const { f, sfx, sources } = setupMusic();
+      sfx.setMusic(true);
+      await sfx.unlock();
+      await flush();
+      expect(sources).toHaveLength(1);
+      // An interruption: the page hides, comes back, and the context runs again only later.
+      f.setState('interrupted' as AudioContextState);
+      sfx.setMusic(false);
+      sfx.setMusic(true);
+      expect(sources).toHaveLength(1);
+      f.setState('running');
+      expect(sources).toHaveLength(2);
+      expect(sources[1]!.stopped).toBe(false);
+    });
+
+    it('stays silent after the context runs again when the music is not wanted', async () => {
+      const { f, sfx, sources } = setupMusic();
+      sfx.setMusic(true);
+      await sfx.unlock();
+      await flush();
+      f.setState('suspended');
+      sfx.setMusic(false);
+      f.setState('running');
+      expect(sources).toHaveLength(1);
+    });
+
+    it('tries the file again on the next start after it failed', async () => {
+      const { sfx, sources, fetched, failing } = setupMusic(true);
+      sfx.setMusic(true);
+      await sfx.unlock();
+      await flush();
+      expect(sources).toEqual([]);
+      failing.music = false;
+      sfx.setMusic(false);
+      sfx.setMusic(true);
+      await flush();
+      expect(fetched.filter((u) => u.endsWith(MUSIC_FILE))).toHaveLength(2);
+      expect(sources).toEqual([{ loop: true, offset: 0, stopped: false }]);
     });
   });
 });

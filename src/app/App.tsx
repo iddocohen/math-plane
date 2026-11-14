@@ -60,6 +60,7 @@ import { SettingsPage } from './SettingsPage';
 import { bannerText, helpLine, messageAfter } from './roundText';
 import { StartScreen, type ModeButton } from './StartScreen';
 import { swUpdate } from './swUpdate';
+import { tapsSoftly } from './tapSound';
 import { TransferDialog, type TransferDialogState } from './TransferDialog';
 import { useRoundState } from './useController';
 import { applyRoundAction, useKeyboard } from './useKeyboard';
@@ -325,11 +326,11 @@ export function App() {
   useEffect(() => () => gameRef.current?.destroy(), []);
 
   // Audio unlocks on the first key press or tap anywhere (also on the start screen, for the music), and again when
-  // the page comes back into view. Every button taps softly.
+  // the page comes back into view. Every button taps softly, except disabled ones and purchases (tapSound.ts).
   useEffect(() => {
     const remove = sfx.installUnlock(document);
     const onClick = (e: MouseEvent) => {
-      if (e.target instanceof Element && e.target.closest('button')) sfx.tap();
+      if (tapsSoftly(e.target)) sfx.tap();
     };
     document.addEventListener('click', onClick);
     return () => {
@@ -338,13 +339,28 @@ export function App() {
     };
   }, [sfx]);
 
-  // Whether the page is hidden: the one visibility listener, read by the music and the round below.
+  // The latest round and "Musik", for the visibility listener below.
+  const roundRef = useRef(round);
+  const musicOnRef = useRef(settings.sound.music);
+  useEffect(() => {
+    roundRef.current = round;
+    musicOnRef.current = settings.sound.music;
+  }, [round, settings.sound.music]);
+
+  // Whether the page is hidden: the one visibility listener. It stops the play time and the music in the event
+  // itself, because iPad Safari can freeze the page before an effect runs; the state is for the effects below.
   const [hidden, setHidden] = useState(() => document.visibilityState === 'hidden');
   useEffect(() => {
-    const onVisibility = () => setHidden(document.visibilityState === 'hidden');
+    const onVisibility = () => {
+      const isHidden = document.visibilityState === 'hidden';
+      const current = roundRef.current;
+      current?.controller.setHidden(isHidden);
+      sfx.setMusic(musicWanted({ on: musicOnRef.current, paused: current?.controller.state().phase === 'paused', hidden: isHidden }));
+      setHidden(isHidden);
+    };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, []);
+  }, [sfx]);
 
   // The music (sound.music): on the start screen and in a running round; it stops while the round is paused or the
   // page is hidden.
@@ -356,7 +372,8 @@ export function App() {
     });
   }, [sfx, round, settings.sound.music, hidden]);
 
-  // Play time stops while the page is hidden; a hidden page also pauses the bombs in the air.
+  // Play time stops while the page is hidden; a hidden page also pauses the bombs in the air. A new round takes the
+  // current visibility here; later changes reach it in the visibility listener.
   useEffect(() => {
     round?.controller.setHidden(hidden);
   }, [round, hidden]);

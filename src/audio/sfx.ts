@@ -28,7 +28,8 @@
  * - Music (`setMusic`): one CC0 loop (`music.mp3`) at MUSIC_GAIN, well below MAX_GAIN. It plays only while the app
  *   wants it (musicWanted: "Musik" on, round not paused, page not hidden) and the context runs, so never before the
  *   unlock gesture. The file loads the first time it is wanted. It has no synthesized stand-in: when the file fails,
- *   the music stays silent. A stopped loop goes on from where it stopped.
+ *   the music stays silent, and the next `setMusic(true)` tries the file again. A stopped loop goes on from where it
+ *   stopped. When the context starts running by itself (an iOS interruption ends), the music starts again.
  */
 
 /** The part of AudioContext this module uses; tests pass a stand-in. */
@@ -45,7 +46,10 @@ export type AudioContextLike = Pick<
   | 'createBufferSource'
   | 'createBiquadFilter'
   | 'decodeAudioData'
->;
+> & {
+  /** Used for `statechange` when present. */
+  addEventListener?(type: 'statechange', listener: () => void): void;
+};
 
 export const SOUND_NAMES = ['propeller', 'whistle', 'hit', 'miss', 'crate', 'puff', 'cheer', 'coin', 'fanfare', 'tap', 'levelUp', 'roundEnd'] as const;
 export type SoundName = (typeof SOUND_NAMES)[number];
@@ -283,7 +287,14 @@ export function createSfx(options: SfxOptions): Sfx {
   const unlock = (): Promise<void> => {
     let resumed: Promise<void> = Promise.resolve();
     try {
-      ctx ??= make();
+      if (!ctx) {
+        const made = make();
+        ctx = made;
+        // The context can start running without a gesture, when an interruption ends: the music starts again then.
+        made.addEventListener?.('statechange', () => {
+          if (made.state === 'running') applyMusic();
+        });
+      }
       if (ctx.state !== 'running') {
         // Both calls run synchronously in the gesture's handler; awaiting anything first would lose the gesture.
         resumed = ctx.resume();
@@ -320,8 +331,11 @@ export function createSfx(options: SfxOptions): Sfx {
     const t = ctx.currentTime;
     const length = music?.duration ?? 0;
     musicOffset = length > 0 ? (voice.offset + t - voice.startedAt) % length : 0;
-    voice.gain.gain.setValueAtTime(MUSIC_GAIN, t);
-    voice.gain.gain.linearRampToValueAtTime(SILENT, t + MUSIC_FADE_OUT);
+    // Fades out from the level it has now, also when it stops during the fade-in.
+    const level = voice.gain.gain;
+    level.cancelScheduledValues(t);
+    level.setValueAtTime(level.value, t);
+    level.linearRampToValueAtTime(SILENT, t + MUSIC_FADE_OUT);
     voice.src.stop(t + MUSIC_FADE_OUT + 0.02);
     voice = null;
   };
@@ -334,9 +348,12 @@ export function createSfx(options: SfxOptions): Sfx {
     }
     if (voice) return;
     if (!music) {
-      // A missing or broken file keeps the music silent.
+      // A missing or broken file keeps the music silent; the next call tries again.
       musicLoad ??= loadBuffer(c, MUSIC_FILE).then((buffer) => {
-        if (!buffer) return;
+        if (!buffer) {
+          musicLoad = null;
+          return;
+        }
         music = buffer;
         applyMusic();
       });

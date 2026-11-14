@@ -3,11 +3,13 @@
  * the kinds add what they show and what is right.
  *
  * "Treffer" tasks have `choices` that stand in the field slots and `rightIndexes`, the choices a bomb may hit to solve
- * the task. "Körper finden" and "Formen finden" have one right choice; view tasks (US2) may have more when two sides
- * look the same (research R7).
+ * the task. Every kind has one right choice so far: a view card that two sides show is offered once (research R7).
  */
+import type { MixedBuilding, MixedView } from '../geometry/mixed';
+import type { Plan } from '../geometry/plan';
+import type { CubeView } from '../geometry/views';
 import type { TaskBase } from '../round/rules';
-import type { FlatShape, Solid } from '../types';
+import type { FlatShape, Side, Solid } from '../types';
 
 /** How one flat shape lies on the field (FR-024c, research R17). */
 export interface ShapeLook {
@@ -43,8 +45,56 @@ export interface FormenTask extends TaskBase {
   rightIndexes: number[];
 }
 
-/** Every "Treffer" task. US2 adds "Bauplan finden" and "Ansicht finden" here. */
-export type TrefferTask = KoerperTask | FormenTask;
+/**
+ * "Bauplan finden" (FR-018, research R5): the plan card and 3 cube buildings, the right one and 2 close variants.
+ * `choices` are the plans of the buildings on the field.
+ */
+export interface BauplanFindenTask extends TaskBase {
+  kind: 'bauplanFinden';
+  mode: 'treffer';
+  /** The plan on the card. */
+  plan: Plan;
+  choices: Plan[];
+  /** One `#rrggbb` color per building, all different. */
+  colors: string[];
+  rightIndexes: number[];
+}
+
+/** A view card of "Ansicht finden": a cube view (grid) or a mixed view (outlines). */
+export interface ViewCard {
+  view: CubeView | MixedView;
+  /** The sides of the building this card shows, for the miss line ("Das ist die Ansicht von links."); may be empty. */
+  shows: Side[];
+}
+
+/** True for a card with a cube view (a grid of squares). */
+export function isCubeCard(view: CubeView | MixedView): view is CubeView {
+  return 'cells' in view;
+}
+
+/** True for a building with mixed pieces, false for a cube plan. */
+export function isMixedBuilding(building: Plan | MixedBuilding): building is MixedBuilding {
+  return !Array.isArray(building);
+}
+
+/**
+ * "Ansicht finden" (FR-019, research R7): one building on the field and 3 view cards; the banner asks for the view
+ * from `side`. `rightIndexes` holds the card that equals that view.
+ */
+export interface AnsichtFindenTask extends TaskBase {
+  kind: 'ansichtFinden';
+  mode: 'treffer';
+  side: Side;
+  /** A cube building (its plan) or a building with mixed pieces. */
+  building: Plan | MixedBuilding;
+  /** The color of a cube building; the pieces of a mixed building have their own. */
+  color: string;
+  choices: ViewCard[];
+  rightIndexes: number[];
+}
+
+/** Every "Treffer" task. */
+export type TrefferTask = KoerperTask | FormenTask | BauplanFindenTask | AnsichtFindenTask;
 
 /** Every task the generator makes so far. */
 export type Task = TrefferTask;

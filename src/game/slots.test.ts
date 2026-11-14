@@ -9,10 +9,10 @@ describe('slotPoint', () => {
     expect(points.map((p) => p.y)).toEqual([640, 760, 640, 760]);
   });
 
-  it('puts the middle one of 3 slots nearer', () => {
+  it('spaces 3 slots from x 560 to 1300, right of the plan card, and puts the middle one nearer', () => {
     expect([0, 1, 2].map((s) => slotPoint(3, s))).toEqual([
-      { x: 300, y: 640 },
-      { x: 800, y: 760 },
+      { x: 560, y: 640 },
+      { x: 930, y: 760 },
       { x: 1300, y: 640 },
     ]);
   });
@@ -22,6 +22,11 @@ describe('aimPoint', () => {
   it('aims at the middle of a solid, above its ground, and at the middle of a flat shape', () => {
     expect(aimPoint('koerper', 4, 1)).toEqual({ x: slotPoint(4, 1).x, y: 760 - 42 });
     expect(aimPoint('formen', 4, 2)).toEqual(slotPoint(4, 2));
+  });
+
+  it('aims above the ground at buildings and view cards', () => {
+    expect(aimPoint('bauplanFinden', 3, 1).y).toBeLessThan(slotPoint(3, 1).y);
+    expect(aimPoint('ansichtFinden', 3, 0).y).toBeLessThan(aimPoint('bauplanFinden', 3, 0).y);
   });
 });
 

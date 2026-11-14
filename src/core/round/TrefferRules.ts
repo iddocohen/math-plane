@@ -4,10 +4,10 @@
  * in which field slot, decide a hit, and move the choices after a miss.
  *
  * State of one task: `slots[i]` is the choice standing in field slot `i`; `lastHit` is the choice the last bomb hit,
- * for the miss line and, in US2, the "Getroffen" card.
+ * for the miss line and the "Getroffen" card of "Bauplan finden" (FR-018, CardsView).
  *
- * US2 adds "Bauplan finden" and "Ansicht finden" through `generateTask` and the `TrefferTask` union; their tasks carry
- * `choices` and `rightIndexes` too, so these rules stay as they are.
+ * Every kind works the same way: "Körper finden" and "Formen finden" stand 4 choices in the slots, "Bauplan finden"
+ * its 3 buildings and "Ansicht finden" its 3 view cards. The choices of each task carry `rightIndexes`.
  */
 import type { Rng } from '../rng';
 import { generateTask } from '../tasks/generate';

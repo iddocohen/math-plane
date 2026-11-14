@@ -74,16 +74,3 @@ describe('generateTask "Formen finden"', () => {
     expect(Math.max(...scales) - Math.min(...scales)).toBeGreaterThan(0.2);
   });
 });
-
-describe('generateTask stand-in for levels 3 to 5', () => {
-  it('"Bauplan finden" and "Ansicht finden" give a solid or shape task with the content level until US2', () => {
-    for (const seed of SEEDS.slice(0, 50)) {
-      for (const [kind, level] of [['bauplanFinden', 3], ['ansichtFinden', 4], ['ansichtFinden', 5]] as const) {
-        const task = make(kind, level, seed);
-        expect(['koerper', 'formen']).toContain(task.kind);
-        expect(task.level).toBe(level);
-        expect(task.rightIndexes).toHaveLength(1);
-      }
-    }
-  });
-});

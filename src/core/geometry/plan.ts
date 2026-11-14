@@ -180,3 +180,74 @@ export function generateCubePlan(rng: Rng, limits: PlanLimits): Plan {
   if (fits.length === 0) throw new RangeError(`generateCubePlan: no plan fits ${JSON.stringify(limits)}`);
   return copy(rng.pick(fits));
 }
+
+/** How a variant of research R5 came from the plan: mirrored or turned, or with one stack changed. */
+export type VariantKind = 'structural' | 'stack';
+
+export interface PlanVariant {
+  plan: Plan;
+  kind: VariantKind;
+}
+
+/** True when every square holds the same stack. Such a plan is never used for "Bauplan finden" (critique P2). */
+export function isUniform(p: Plan): boolean {
+  const all = p.flat();
+  return all.every((h) => h === all[0]);
+}
+
+/**
+ * Every distinct variant of `p` within `limits` (research R5), structural ones first:
+ *
+ * - mirrored left-right and front-back, and, for a square plan, turned by 90°, 180° and 270°;
+ * - one stack changed by +1 or -1, from `minStack` to `maxStack`; on a 2×2 plan never to 0.
+ *
+ * A variant is kept only when it differs from `p` and from every variant kept before it. Variants need not be readable
+ * (research R4): a turned building often hides a low stack behind a tall one, and it still looks different from the
+ * right building, which is readable.
+ */
+export function planCandidates(p: Plan, limits: PlanLimits): PlanVariant[] {
+  const lowest = limits.size === 2 ? Math.max(1, limits.minStack) : limits.minStack;
+  const out: PlanVariant[] = [];
+  const add = (plan: Plan | null, kind: VariantKind) => {
+    if (plan === null || plansEqual(plan, p) || out.some((v) => plansEqual(v.plan, plan))) return;
+    if (plan.flat().some((h) => h < lowest || h > limits.maxStack)) return;
+    out.push({ plan, kind });
+  };
+  add(mirrorLR(p), 'structural');
+  add(mirrorFB(p), 'structural');
+  if (p.length === (p[0]?.length ?? 0)) {
+    let turned = p;
+    for (let i = 0; i < 3; i++) {
+      turned = rotate90(turned);
+      add(turned, 'structural');
+    }
+  }
+  p.forEach((row, r) =>
+    row.forEach((_, c) => {
+      add(changeOne(p, r, c, 1), 'stack');
+      add(changeOne(p, r, c, -1), 'stack');
+    }),
+  );
+  return out;
+}
+
+/**
+ * `count` wrong buildings for the plan `p` (research R5): picked by `rng` from `planCandidates`, one structural variant
+ * (mirror or turn) and one stack change first when both exist, then any. Never equal to `p` or to each other. Fewer
+ * than `count` only when `p` has fewer variants; "Bauplan finden" rejects such plans (`hasVariants`).
+ */
+export function planVariants(p: Plan, rng: Rng, limits: PlanLimits, count: number): Plan[] {
+  const all = rng.shuffled(planCandidates(p, limits));
+  const picked: PlanVariant[] = [];
+  for (const kind of ['structural', 'stack'] as const) {
+    const first = all.find((v) => v.kind === kind && !picked.includes(v));
+    if (first && picked.length < count) picked.push(first);
+  }
+  for (const v of all) if (picked.length < count && !picked.includes(v)) picked.push(v);
+  return rng.shuffled(picked).map((v) => copy(v.plan));
+}
+
+/** True when `p` can be used for "Bauplan finden": not uniform, with at least `count` variants (critique P2). */
+export function hasVariants(p: Plan, limits: PlanLimits, count = 2): boolean {
+  return !isUniform(p) && planCandidates(p, limits).length >= count;
+}

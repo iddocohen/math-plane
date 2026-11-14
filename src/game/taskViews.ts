@@ -1,8 +1,10 @@
 /**
  * How the views of the task kinds plug into the round scene (plan "Controller decides, view animates"). Later tasks add
- * their views here (BuildingView and CardsView in T041, CratesView in T046, GridView in T053) by adding a factory to
+ * their views here (CratesView in T046, GridView in T053) by adding a factory to
  * TASK_VIEWS; RoundScene and App stay as they are. "Treffer" choices use TargetsView (SolidsView, ShapesView) and the
- * bomb of every "Treffer" kind falls in BombView.
+ * bomb of every "Treffer" kind falls in BombView. "Bauplan finden" shows the plan cards (CardsView) and its buildings as
+ * targets (BuildingView); "Ansicht finden" shows its building with the eye (BuildingView) and its view cards as targets
+ * (CardsView).
  *
  * - A view gets a `TaskViewContext`: the scene, the plane, the effects, and `input`, the small part of the
  *   RoundController a view may call. Tap areas call `input` (for example `tapChoice(slot)` on a solid, `typeHeight` from
@@ -17,6 +19,8 @@ import type { SoundName } from '../audio/sfx';
 import type { Phase, RoundEvent, RoundState } from '../core/round/RoundController';
 import type { TaskKind } from '../core/types';
 import { bombView } from './BombView';
+import { buildingTargetsView, buildingView } from './BuildingView';
+import { planCardsView, viewCardsView } from './CardsView';
 import type { BombStyle } from './effects';
 import type { EffectsView } from './EffectsView';
 import type { PlaneView } from './PlaneView';
@@ -84,4 +88,4 @@ export interface TaskViewFactory {
 }
 
 /** The views of the task kinds. */
-export const TASK_VIEWS: TaskViewFactory[] = [solidsView, shapesView, bombView];
+export const TASK_VIEWS: TaskViewFactory[] = [solidsView, shapesView, planCardsView, buildingTargetsView, buildingView, viewCardsView, bombView];

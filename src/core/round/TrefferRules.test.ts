@@ -3,7 +3,7 @@ import { createRng } from '../rng';
 import { defaultSettings } from '../settings/defaults';
 import type { Settings } from '../settings/schema';
 import { emptyProgress } from '../storage/schemas';
-import type { TrefferTask } from '../tasks/types';
+import type { KoerperTask, TrefferTask } from '../tasks/types';
 import { FALLBACK_MS, PASS_MS, RoundController, type RoundEvent } from './RoundController';
 import { reshuffle, trefferRules, type TrefferState } from './TrefferRules';
 
@@ -39,7 +39,7 @@ describe('trefferRules', () => {
       const { task, taskState } = controller.state();
       expect([...taskState.slots].sort()).toEqual([0, 1, 2, 3]);
       const answer = Number(trefferRules.answer!(task, taskState));
-      expect(task.choices[trefferRules.choiceAt(task, taskState, answer)!]).toBe(task.target);
+      expect(task.choices[trefferRules.choiceAt(task, taskState, answer)!]).toBe((task as KoerperTask).target);
       expect(trefferRules.choiceAt(task, taskState, 4)).toBeNull();
     }
   });
@@ -151,4 +151,26 @@ describe('reshuffle', () => {
       expect(reshuffle(slots, choice, createRng(seed + 1000)).indexOf(choice)).not.toBe(slots.indexOf(choice));
     }
   });
+});
+
+describe('trefferRules with plan and view tasks (US2)', () => {
+  for (const level of [3, 4, 5] as const) {
+    it(`level ${level}: 3 choices in 3 slots, one right slot, and a miss remembers the choice hit for the "Getroffen" card`, () => {
+      for (let seed = 1; seed <= 60; seed++) {
+        const { controller } = round({ seed, settings: settings((s) => (s.levels.treffer = { start: level, hardest: level })) });
+        const { task, taskState } = controller.state();
+        expect(task.kind).toBe(level === 3 ? 'bauplanFinden' : 'ansichtFinden');
+        expect([...taskState.slots].sort()).toEqual([0, 1, 2]);
+        expect(trefferRules.answer!(task, taskState).split(',')).toHaveLength(1);
+        const wrong = slotOf(controller, 'wrong');
+        const choice = taskState.slots[wrong]!;
+        controller.tapChoice(wrong);
+        controller.landBomb();
+        const after = controller.state();
+        expect(after.taskState.lastHit).toBe(choice);
+        expect(after.taskState.slots.indexOf(choice)).not.toBe(wrong);
+        expect(after.task.id).toBe(task.id);
+      }
+    });
+  }
 });

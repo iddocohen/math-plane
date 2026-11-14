@@ -59,3 +59,41 @@ export function cubeView(p: Plan, side: Side, gridHeight: number): CubeView {
   });
   return { side, cells, height: gridHeight, signature: signature(cells) };
 }
+
+/** A view with the grid `cells`, for cards made from another view (research R7). */
+export function viewFromCells(side: Side, cells: boolean[][]): CubeView {
+  return { side, cells, height: cells.length, signature: signature(cells) };
+}
+
+/** The view seen in a mirror: left and right swap (a wrong card, research R7). */
+export function mirrorCubeView(v: CubeView): CubeView {
+  return viewFromCells(
+    v.side,
+    v.cells.map((row) => [...row].reverse()),
+  );
+}
+
+/**
+ * Views like `v` with one column changed (a wrong card, research R7): a side view with one column one square higher or
+ * lower, the top view with one square switched. Views with no filled square are left out.
+ */
+export function oneColumnChanged(v: CubeView): CubeView[] {
+  const rows = v.cells.length;
+  const cols = v.cells[0]?.length ?? 0;
+  const out: CubeView[] = [];
+  const keep = (cells: boolean[][]) => {
+    if (cells.some((row) => row.includes(true))) out.push(viewFromCells(v.side, cells));
+  };
+  if (v.side === 'oben') {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) keep(v.cells.map((row, i) => row.map((on, j) => (i === r && j === c ? !on : on))));
+    return out;
+  }
+  for (let c = 0; c < cols; c++) {
+    const height = v.cells.filter((row) => row[c]).length;
+    for (const next of [height - 1, height + 1]) {
+      if (next < 0 || next > rows) continue;
+      keep(v.cells.map((row, i) => row.map((on, j) => (j === c ? rows - 1 - i < next : on))));
+    }
+  }
+  return out;
+}

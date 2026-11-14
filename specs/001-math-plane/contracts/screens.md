@@ -1,6 +1,6 @@
 # Contract: screens, keys and test hooks
 
-World size 1600 by 1000, scaled to fit, as math-soccer. Sky y 0 to 380 with clouds; the plane flies at y 90 to 150, left to right, bobbing ±8. Grass field y 380 to 1000. Banner (task line) at the top of the overlay. "Treffer" slots: 3 or 4 target slots on the field, evenly spaced at x 300 to 1300, y 640 to 760. Card positions: plan card and "Getroffen" card on the left (x 40 to 420), view cards on the field slots. "Bauen und Malen": the building on the field centered at (560, 640); the plan or paint grid on the right (x 960 to 1500); the "So soll es aussehen" card on the left.
+World size 1600 by 1000, scaled to fit, as math-soccer. Sky y 0 to 380 with clouds; the plane flies at y 90 to 150, left to right, bobbing ±8. Grass field y 380 to 1000. Banner (task line) at the top of the overlay. "Treffer" slots: 3 or 4 target slots on the field, y 640 to 760: 4 slots evenly spaced at x 300 to 1300, 3 slots (buildings, view cards) at x 560 to 1300, so the plan card or the building asked about stands on the left. Card positions: plan card and "Getroffen" card on the left (x 40 to 420), view cards on the field slots; in "Ansicht finden" the building asked about stands on the left with the eye at the side asked. "Bauen und Malen": the building on the field centered at (560, 640); the plan or paint grid on the right (x 960 to 1500); the "So soll es aussehen" card on the left.
 
 ## Screens
 

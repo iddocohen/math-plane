@@ -70,12 +70,12 @@ description: "Task list for Mathe-Flieger"
 **Goal**: "Treffer" levels 3 to 5.
 **Independent Test**: quickstart scenario 3.
 
-- [ ] T038 [P] [US2] Implement `planVariants` in `src/core/geometry/plan.ts`: mirror LR, mirror FB, turns, one stack ±1 within limits (never 0 on 2×2 levels); distinct from the plan and each other; reject uniform plans and plans with fewer than 2 variants (R5, critique P2); tests over 500 seeds
-- [ ] T039 [P] [US2] Implement `src/core/geometry/mixed.ts`: pieces (box, cylinder 1×1 or 2×2, sphere diameter 1 or 2), templates, `generateMixed` with no overlaps, support on boxes, each piece at least a quarter visible per side used, 200 tries then built-in list; `mixedView` with outlines sorted back to front, `hitTest` front to back, `signature` (R6, R7, critique E4); tests
-- [ ] T040 [US2] Implement `bauplanFinden` and `ansichtFinden` generation in `src/core/tasks/generate.ts` and checks in `check.ts`: 2×2 plans with stacks 1 to 3 on level 3; cube buildings with vorn/oben on level 4; all sides and mixed buildings on level 5 within settings; wrong cards from other sides, mirrored view, one changed column or removed piece; `rightIndexes` for equal sides (R7); miss line "Das ist die Ansicht von links."; tests: exactly one right card over 500 seeds
-- [ ] T041 [P] [US2] Implement `src/game/BuildingView.ts` (cube and mixed buildings with "vorn" marks) and `src/game/CardsView.ts` (plan card, "Getroffen" card, view cards with grid or outlines, "unten"/"vorn" labels) (FR-005)
-- [ ] T042 [US2] Wire plan and view tasks into `TrefferRules.ts`, `RoundScene.ts` and the overlay; "Getroffen" card after a miss (FR-018)
-- [ ] T043 [US2] Playwright `tests/e2e/trefferViews.spec.ts`: start level 3 and level 5 via seeded settings; one right building per card, "Getroffen" card after a miss, side asked covers all four sides on level 5
+- [X] T038 [P] [US2] Implement `planVariants` in `src/core/geometry/plan.ts`: mirror LR, mirror FB, turns, one stack ±1 within limits (never 0 on 2×2 levels); distinct from the plan and each other; reject uniform plans and plans with fewer than 2 variants (R5, critique P2); tests over 500 seeds
+- [X] T039 [P] [US2] Implement `src/core/geometry/mixed.ts`: pieces (box, cylinder 1×1 or 2×2, sphere diameter 1 or 2), templates, `generateMixed` with no overlaps, support on boxes, each piece at least a quarter visible per side used, 200 tries then built-in list; `mixedView` with outlines sorted back to front, `hitTest` front to back, `signature` (R6, R7, critique E4); tests
+- [X] T040 [US2] Implement `bauplanFinden` and `ansichtFinden` generation in `src/core/tasks/generate.ts` and checks in `check.ts`: 2×2 plans with stacks 1 to 3 on level 3; cube buildings with vorn/oben on level 4; all sides and mixed buildings on level 5 within settings; wrong cards from other sides, mirrored view, one changed column or removed piece; `rightIndexes` for equal sides (R7); miss line "Das ist die Ansicht von links."; tests: exactly one right card over 500 seeds
+- [X] T041 [P] [US2] Implement `src/game/BuildingView.ts` (cube and mixed buildings with "vorn" marks) and `src/game/CardsView.ts` (plan card, "Getroffen" card, view cards with grid or outlines, "unten"/"vorn" labels) (FR-005)
+- [X] T042 [US2] Wire plan and view tasks into `TrefferRules.ts`, `RoundScene.ts` and the overlay; "Getroffen" card after a miss (FR-018)
+- [X] T043 [US2] Playwright `tests/e2e/trefferViews.spec.ts`: start level 3 and level 5 via seeded settings; one right building per card, "Getroffen" card after a miss, side asked covers all four sides on level 5
 
 ## Phase 5: User Story 3 - Complete building plans in "Bauen" (P1)
 

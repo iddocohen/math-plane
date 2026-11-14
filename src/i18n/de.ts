@@ -87,6 +87,8 @@ export const de = {
     target: 'So soll es aussehen',
     /** The card with the plan of the building hit in "Bauplan finden" (FR-018). */
     hitCard: 'Getroffen',
+    /** The card with the plan to find in "Bauplan finden" (prototype `card(..., 'Bauplan')`). */
+    planCard: 'Bauplan',
   },
 
   /** Names of solids and flat shapes (prototype `SOLIDS` and `SHAPES`): with the accusative and nominative article. */
@@ -139,6 +141,8 @@ export const de = {
     missNamed: (nom: string) => `Das ist ${nom}.`,
     /** A view card that shows another side: "Das ist die Ansicht von links." */
     missView: (side: keyof typeof fromSide) => `Das ist die Ansicht ${fromSide[side]}.`,
+    /** A view card that shows no side of the building (mirrored or changed). */
+    missViewOther: 'Das ist eine andere Ansicht.',
     /** A building with another plan; the "Getroffen" card shows its plan. */
     missPlan: 'Dieses Gebäude hat einen anderen Bauplan.',
     /** After a miss, the plane comes back. */

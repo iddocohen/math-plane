@@ -27,9 +27,32 @@ import {
   unreadableKey,
 } from './storage';
 
-/** A stored round of the placeholder shape; `over` replaces fields. */
+/** A stored round at its first task; `over` replaces fields. */
 function storedRound(over: Partial<StoredRound> = {}): StoredRound {
-  return { version: 1, mode: 'treffer', seed: 1, level: 1, elapsedMs: 0, ...over };
+  return {
+    version: 1,
+    mode: 'treffer',
+    seed: 1,
+    level: 1,
+    elapsedMs: 0,
+    bombsTotal: 10,
+    bombsLeft: 10,
+    hits: 0,
+    tasksTotal: 0,
+    tasksDone: 0,
+    solvedAlone: 0,
+    stars: 0,
+    taskIndex: 1,
+    previousKind: null,
+    content: { kind: 'koerper', level: 1 },
+    solved: false,
+    misses: 0,
+    helpStep: 0,
+    taskStartMs: 0,
+    marked: [],
+    ruleState: { slots: [2, 0, 1, 3] },
+    ...over,
+  };
 }
 
 function attempt(over: Partial<AttemptRecord> = {}): AttemptRecord {

@@ -111,17 +111,49 @@ export function emptyHangar(): Hangar {
   return { version: 1, stars: 0, owned: [], chosen: { ...STARTER } };
 }
 
+/** The content a task was made from (core/tasks/levels.ts `Content`), so a restored round makes the same task. */
+export const contentSchema = z.object({
+  kind: z.enum(TASK_KINDS),
+  level: levelSchema,
+  plan: z
+    .object({ size: z.union([z.literal(2), z.literal(3)]), minStack: z.number().int().min(0), maxStack: z.number().int().min(0) })
+    .optional(),
+  sides: z.array(z.enum(SIDES)).optional(),
+  mixed: z.boolean().optional(),
+});
+
 /**
- * `mathplane.round.v1`, version 1: the running round, kept on refresh (data-model.md "Round"). A placeholder until the
- * round controller (T021) defines what it saves: the fields every round has are checked, and other fields are kept as
- * they are. When T021 fixes the shape, a stored round of this placeholder shape is discarded on load by raising the
- * version, without a migration step, as math-soccer does for its round.
+ * `mathplane.round.v1`, version 1: the running round, kept on refresh (data-model.md "Round", core/round/
+ * RoundController.ts). The task is not stored: it is made again from `content` and the seed of task `taskIndex`.
+ * `ruleState` is the mode rules' own state of the task (typed crates, painted squares, slots); the rules check it when
+ * the round is restored. Version 1 of the game never stored the earlier placeholder shape, so no migration is needed.
  */
-export const roundSchema = z.looseObject({
+export const roundSchema = z.object({
   version: z.literal(1),
   mode: modeSchema,
   seed: z.number().int(),
+  /** The level of the mode when the round was saved. */
   level: levelSchema,
   elapsedMs: z.number().min(0),
+  bombsTotal: z.number().int().min(0),
+  bombsLeft: z.number().int().min(0),
+  hits: z.number().int().min(0),
+  tasksTotal: z.number().int().min(0),
+  tasksDone: z.number().int().min(0),
+  solvedAlone: z.number().int().min(0),
+  /** Stars earned in this round so far. */
+  stars: z.number().int().min(0),
+  /** How many tasks the round has started, counting the current one. */
+  taskIndex: z.number().int().min(0),
+  previousKind: z.enum(TASK_KINDS).nullable(),
+  content: contentSchema,
+  /** True when the current task was solved and the next one has not started. */
+  solved: z.boolean(),
+  misses: z.number().int().min(0),
+  helpStep: z.number().int().min(0).max(3),
+  /** Play time of the round when the current task started. */
+  taskStartMs: z.number().min(0),
+  marked: z.array(z.string()),
+  ruleState: z.unknown(),
 });
 export type StoredRound = z.infer<typeof roundSchema>;

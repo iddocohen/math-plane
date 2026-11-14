@@ -142,7 +142,7 @@ description: "Task list for Mathe-Flieger"
 - [X] T073a [P] Look for CC0 recordings of a propeller hum, a bomb whistle, a soft hit pop and a crate landing (for example on kenney.nl or opengameart.org); check each license on the asset's own page; bundle passing files in `public/assets/` and wire them in `src/audio/sfx.ts` with the synthesized sound as fallback; skip any sound whose license cannot be confirmed (PRD section 13, FR-043)
 - [X] T074 Write `README.md`: what the game is for, how to play (both modes), parent guide (gate, settings, progress, backup), development commands, and the asset table with author, license and source for every bundled file (FR-058)
 - [X] T075 Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm e2e`; fix failures
-- [ ] T076 Publish (R14, FR-060): `gh auth status`; `gh repo create iddocohen/math-plane --public --source . --push`; `gh api -X POST repos/iddocohen/math-plane/pages -f build_type=workflow`; wait for the "Build and publish to GitHub Pages" run; confirm `https://iddocohen.github.io/math-plane/` loads. If `gh` is not logged in, record the blocker in the implement report
+- [X] T076 Publish (R14, FR-060): `gh auth status`; `gh repo create iddocohen/math-plane --public --source . --push`; `gh api -X POST repos/iddocohen/math-plane/pages -f build_type=workflow`; wait for the "Build and publish to GitHub Pages" run; confirm `https://iddocohen.github.io/math-plane/` loads. If `gh` is not logged in, record the blocker in the implement report
 
 ## Dependencies
 

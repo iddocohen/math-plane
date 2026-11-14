@@ -40,6 +40,11 @@ export interface RulesBase<T extends TaskBase, S> {
   createState(task: T, rng: Rng): S;
   /** The stored state of `task` checked for use, or null when it does not fit, so the task starts fresh. */
   restoreState(task: T, raw: unknown): S | null;
+  /**
+   * The right answer as text for the test hook `data-answer` (contracts/screens.md "Test hooks"), for example the
+   * slot of the right choice or the plan; the app shows it only with `?test=1`. Rules without it show nothing.
+   */
+  answer?(task: T, state: S): string;
 }
 
 /** "Treffer" (FR-008, FR-014, FR-015, research R9). */

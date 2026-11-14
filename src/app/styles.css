@@ -1,0 +1,397 @@
+/* Base styles adapted from math-soccer src/app/styles.css; colors and shapes from the prototype (a sunny sky). */
+
+/* Fredoka for headings and buttons, bundled in public/assets; Vite puts the base path in front of the URL. */
+@font-face {
+  font-family: Fredoka;
+  src: url('/assets/Fredoka.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --ink: #24324a;
+  --sky-top: #5fb4ef;
+  --sky: #7ec8f0;
+  --sky-light: #bfe6ff;
+  --grass: #7cc46a;
+  --grass-dark: #4f9b45;
+  --gold: #ffd23f;
+  --gold-dark: #b8901a;
+  --red: #e0413a;
+  --blue: #2f7fd1;
+  --green: #3fa34d;
+  --green-dark: #2a7434;
+  --orange: #ef7d22;
+  --card: rgb(255 255 255 / 85%);
+  --muted: #5b6b82;
+  font-family: Fredoka, 'Trebuchet MS', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--sky);
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root,
+.app {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--sky);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Touch targets: at least 48 by 48 CSS pixels. */
+button {
+  min-width: 48px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  padding: 8px 18px;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 3px 0 rgb(0 0 0 / 20%);
+}
+
+button.primary {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--green-dark);
+}
+
+button:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Start screen: sky above, grass below, as the prototype. */
+.start {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  height: 100%;
+  padding: 16px;
+  background: linear-gradient(var(--sky-top), var(--sky-light) 55%, var(--grass) 55%, var(--grass-dark));
+}
+
+.start-title {
+  margin: 0;
+  font-size: clamp(2.4rem, 7vw, 4rem);
+  color: #fff;
+  text-shadow: 0 4px 0 var(--blue);
+}
+
+.start-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.start-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: min(300px, 80vw);
+  padding: 22px 10px;
+  border-radius: 22px;
+  font-size: 1.9rem;
+  color: #fff;
+  box-shadow: 0 5px 0 rgb(0 0 0 / 20%);
+}
+
+.start-treffer {
+  background: var(--red);
+}
+
+.start-bauenMalen {
+  background: var(--blue);
+}
+
+.start-button[data-mode-state='empty'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.start-level {
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+.start-key {
+  font-size: 0.85rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.start-hangar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.star-total {
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.start-notices {
+  max-width: 640px;
+}
+
+.notice {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #fff;
+  text-align: center;
+}
+
+.notice.warn {
+  border: 2px solid var(--orange);
+}
+
+.notice p {
+  margin: 0 0 8px;
+}
+
+.top-right {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  gap: 8px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+/* Round: the Phaser canvas fills the screen, the React overlay lies on top. */
+.round {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--sky);
+}
+
+.game-parent,
+.game-host {
+  position: absolute;
+  inset: 0;
+}
+
+.round-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: max(10px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+.round-overlay button {
+  pointer-events: auto;
+}
+
+.round-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill-button {
+  background: var(--card);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.banner {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: clamp(1.2rem, 2.6vw, 1.9rem);
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 30%);
+}
+
+.help-button {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--gold);
+  font-size: 1.7rem;
+  box-shadow: 0 3px 0 var(--gold-dark);
+}
+
+.message {
+  align-self: center;
+  min-height: 1.4em;
+  max-width: min(760px, 90%);
+  margin: 8px 0 0;
+  padding: 8px 20px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 95%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+  font-size: 1.3rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.message.on {
+  opacity: 1;
+}
+
+.round-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.bomb-bay,
+.task-counter,
+.round-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.bomb {
+  width: 14px;
+  height: 18px;
+  border-radius: 50% 50% 45% 45%;
+  background: #3b4a63;
+}
+
+.bomb.used {
+  opacity: 0.2;
+}
+
+.bomb-count {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.done-button {
+  height: 56px;
+  padding: 0 26px;
+  background: var(--green);
+  color: #fff;
+  font-size: 1.5rem;
+  box-shadow: 0 3px 0 var(--green-dark);
+}
+
+/* Pause and round end over the round */
+.round-end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgb(36 50 74 / 55%);
+  text-align: center;
+  color: #fff;
+}
+
+.round-end h2 {
+  margin: 0;
+  font-size: 2.6rem;
+  color: #fff;
+  text-shadow: 0 3px 0 var(--blue);
+}
+
+.round-end p {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.round-end .round-result {
+  padding: 8px 20px;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.round-end .new-record {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.round-end .record,
+.round-end .update-note,
+.round-end .round-time {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.round-end-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+/* Screens over everything: the Hangar and the parent screens (stand-ins until their tasks). */
+.panel-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: linear-gradient(var(--sky-top), var(--sky-light));
+}
+
+.panel-screen h2 {
+  margin: 0;
+  font-size: 2.4rem;
+  color: #fff;
+  text-shadow: 0 3px 0 var(--blue);
+}

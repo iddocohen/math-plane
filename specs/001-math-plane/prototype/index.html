@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Mathe-Flieger Prototyp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#24324a; --gold:#ffd23f; --btn:#2f7fd1; }
+  html,body { margin:0; height:100%; background:#1d2b44; overflow:hidden; font-family:'Fredoka','Trebuchet MS',sans-serif; color:var(--ink); -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+  #stage { position:absolute; width:1024px; height:700px; transform-origin:0 0; }
+  canvas { position:absolute; left:0; top:0; width:1024px; height:700px; }
+  button { font-family:inherit; cursor:pointer; border:0; }
+  #top { position:absolute; left:0; right:0; top:0; height:64px; display:flex; align-items:center; gap:12px; padding:0 14px; box-sizing:border-box; }
+  #home { background:#ffffffd9; border-radius:14px; padding:8px 14px; font-size:18px; color:var(--ink); }
+  #banner { flex:1; text-align:center; font-size:28px; font-weight:600; color:#fff; text-shadow:0 2px 0 #0005; }
+  #stars { background:#ffffffd9; border-radius:14px; padding:8px 14px; font-size:20px; font-weight:600; }
+  #help { width:46px; height:46px; border-radius:50%; background:var(--gold); font-size:26px; font-weight:600; color:var(--ink); box-shadow:0 3px 0 #b8901a; }
+  #bottom { position:absolute; left:0; right:0; bottom:14px; display:flex; justify-content:center; gap:10px; }
+  #digits { display:flex; gap:8px; }
+  #digits button { width:56px; height:56px; border-radius:14px; background:#fff; font-size:28px; font-weight:600; color:var(--ink); box-shadow:0 3px 0 #0003; }
+  #done { height:56px; padding:0 26px; border-radius:14px; background:#3fa34d; color:#fff; font-size:24px; font-weight:600; box-shadow:0 3px 0 #2a7434; }
+  #toast { position:absolute; left:50%; top:76px; transform:translateX(-50%); background:#fffffff2; border-radius:16px; padding:10px 20px; font-size:22px; max-width:760px; text-align:center; box-shadow:0 4px 12px #0003; opacity:0; transition:opacity .25s; pointer-events:none; }
+  #toast.on { opacity:1; }
+  #start { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; background:linear-gradient(#7cc4f5,#bfe6ff 55%,#7cc46a 55%); }
+  #start h1 { margin:0; font-size:64px; color:#fff; text-shadow:0 4px 0 #2f7fd1; }
+  #start .row { display:flex; gap:24px; }
+  #start .big { width:300px; padding:22px 10px; border-radius:22px; font-size:30px; font-weight:600; color:#fff; box-shadow:0 5px 0 #0003; }
+  #start .big small { display:block; font-size:17px; font-weight:400; margin-top:6px; }
+  #b-treffer { background:#e0413a; }
+  #b-bauen { background:#2f7fd1; }
+  #start p { margin:0; font-size:16px; color:#24324a; background:#ffffffcc; padding:6px 14px; border-radius:10px; }
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="top" class="hide">
+    <button id="home">⌂ Zum Start</button>
+    <div id="banner"></div>
+    <span id="stars">★ 0</span>
+    <button id="help" title="Hilfe (H)">?</button>
+  </div>
+  <div id="bottom" class="hide">
+    <div id="digits"></div>
+    <button id="done">Fertig</button>
+  </div>
+  <div id="toast"></div>
+  <div id="start">
+    <h1>Mathe-Flieger</h1>
+    <div class="row">
+      <button class="big" id="b-treffer">Treffer<small>Bomben auf die richtige Form</small></button>
+      <button class="big" id="b-bauen">Bauen und Malen<small>Kisten abwerfen, Ansichten malen</small></button>
+    </div>
+    <p>Prototyp zum Ausprobieren. Nichts wird gespeichert.</p>
+  </div>
+</div>
+<script>
+'use strict';
+const W = 1024, H = 700;
+const cv = document.getElementById('cv');
+cv.width = W * 2; cv.height = H * 2;
+const ctx = cv.getContext('2d');
+ctx.scale(2, 2);
+const $ = (id) => document.getElementById(id);
+
+function fit() {
+  const k = Math.min(innerWidth / W, innerHeight / H);
+  const st = $('stage');
+  st.style.transform = `scale(${k})`;
+  st.style.left = (innerWidth - W * k) / 2 + 'px';
+  st.style.top = (innerHeight - H * k) / 2 + 'px';
+}
+addEventListener('resize', fit); fit();
+
+/* ---------- helpers ---------- */
+const PAL = ['#e0413a', '#2f7fd1', '#f2c230', '#3fa34d', '#ef7d22'];
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(f > 1 ? v + (255 - v) * (f - 1) : v * f))));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function poly(pts, fill, stroke = 'rgba(0,0,0,.35)', lw = 1.3) {
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function text(t, x, y, size, color = '#24324a', align = 'center', weight = 600) {
+  ctx.font = `${weight} ${size}px Fredoka, 'Trebuchet MS', sans-serif`;
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y);
+}
+const eq2 = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/* ---------- sound (synthesized) ---------- */
+let AC = null;
+function ac() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+function tone(f, dur, type = 'sine', vol = 0.2, f2 = null, delay = 0) {
+  const a = ac(); if (!a) return; const t = a.currentTime + delay;
+  const o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol = 0.3, freq = 800, delay = 0) {
+  const a = ac(); if (!a) return; const t = a.currentTime + delay;
+  const b = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate); const d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const s = a.createBufferSource(); s.buffer = b; const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = freq;
+  const g = a.createGain(); g.gain.value = vol; s.connect(fl).connect(g).connect(a.destination); s.start(t);
+}
+const SND = {
+  whoosh() { noise(0.6, 0.12, 900); },
+  drop() { tone(900, 0.5, 'sine', 0.08, 300); },
+  boom() { tone(150, 0.5, 'sine', 0.35, 40); noise(0.45, 0.3, 700); [784, 988, 1175].forEach((f, i) => tone(f, 0.2, 'triangle', 0.1, null, 0.15 + i * 0.07)); },
+  puff() { noise(0.3, 0.12, 500); },
+  pop() { tone(520, 0.12, 'triangle', 0.18, 880); },
+  thud() { tone(220, 0.12, 'square', 0.06, 110); },
+  splat() { noise(0.12, 0.12, 2400); tone(660, 0.08, 'sine', 0.06); },
+  cheer() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.28, 'triangle', 0.16, null, i * 0.09)); },
+  soft() { tone(392, 0.22, 'sine', 0.12); tone(330, 0.3, 'sine', 0.12, null, 0.18); },
+};
+
+/* ---------- particles ---------- */
+let parts = [];
+function burst(x, y, n, colors, kind = 'star', speed = 260) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * speed;
+    parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (kind === 'smoke' ? 20 : 140), life: 0.8 + Math.random() * 0.7, age: 0, c: colors[i % colors.length], kind, r: kind === 'smoke' ? 10 + Math.random() * 8 : 4 + Math.random() * 5, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 10 });
+  }
+}
+function drawStar(x, y, r, rot) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const rad = i % 2 ? r * 0.45 : r; const a = rot + (i * Math.PI) / 5; ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
+  ctx.closePath(); ctx.fill();
+}
+function updParts(dt) {
+  for (const p of parts) {
+    p.age += dt;
+    if (p.kind === 'smoke' || p.kind === 'trail') { p.vx *= 0.96; p.vy *= 0.96; p.r += dt * 14; }
+    else p.vy += 420 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+  }
+  parts = parts.filter((p) => p.age < p.life);
+}
+function drawParts() {
+  for (const p of parts) {
+    ctx.globalAlpha = Math.max(0, 1 - p.age / p.life); ctx.fillStyle = p.c;
+    if (p.kind === 'star') drawStar(p.x, p.y, p.r, p.rot);
+    else if (p.kind === 'confetti') { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.r, -p.r / 2.5, p.r * 2, p.r / 1.2); ctx.restore(); }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+const CELEB = ['#ffd23f', '#ff8fb1', '#7ee0ff', '#9be27a', '#ffffff'];
+
+/* ---------- isometric drawing ---------- */
+function isoP(ox, oy, s) { return (a, b, c) => [ox + (a - b) * s, oy + (a + b) * s * 0.5 - c * s * 1.1]; }
+function drawBox(P, x, y, z, dx, dy, dz, col, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  poly([P(x, y, z + dz), P(x + dx, y, z + dz), P(x + dx, y + dy, z + dz), P(x, y + dy, z + dz)], shade(col, 1.25));
+  poly([P(x + dx, y, z + dz), P(x + dx, y + dy, z + dz), P(x + dx, y + dy, z), P(x + dx, y, z)], shade(col, 0.72));
+  poly([P(x, y + dy, z + dz), P(x + dx, y + dy, z + dz), P(x + dx, y + dy, z), P(x, y + dy, z)], col);
+  ctx.globalAlpha = 1;
+}
+// building origin so that its ground center sits at (cx, cy)
+function bOrigin(h, cx, cy, s) { const n = h.length, m = h[0].length; return isoP(cx - ((m - n) / 2) * s, cy - ((m + n) / 4) * s, s); }
+function drawBuilding(h, cx, cy, s, col, opt = {}) {
+  const n = h.length, m = h[0].length, P = bOrigin(h, cx, cy, s);
+  if (opt.tiles) {
+    for (let y = 0; y < n; y++) for (let x = 0; x < m; x++) {
+      const sel = opt.sel && opt.sel.x === x && opt.sel.y === y;
+      const wrong = opt.wrong && opt.wrong.has(x + ',' + y);
+      poly([P(x, y, 0), P(x + 1, y, 0), P(x + 1, y + 1, 0), P(x, y + 1, 0)], sel ? 'rgba(255,230,120,.85)' : wrong ? 'rgba(255,170,80,.6)' : 'rgba(255,255,255,.28)', 'rgba(255,255,255,.7)', 1.5);
+    }
+  } else {
+    // soft shadow
+    ctx.fillStyle = 'rgba(0,0,0,.16)';
+    const c = P(m / 2, n / 2, 0); ctx.beginPath(); ctx.ellipse(c[0], c[1] + 2, (m + n) * s * 0.55, (m + n) * s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  for (let d = 0; d <= m + n - 2; d++) for (let y = 0; y < n; y++) {
+    const x = d - y; if (x < 0 || x >= m) continue;
+    for (let z = 0; z < h[y][x]; z++) drawBox(P, x, y, z, 1, 1, 1, Array.isArray(col) ? col[(x + y + z) % col.length] : col);
+    if (opt.crates) for (const c of opt.crates) if (c.x === x && c.y === y && c.delay <= 0) drawCrate(P, c);
+  }
+  return P;
+}
+function drawCrate(P, c) {
+  drawBox(P, c.x + 0.05, c.y + 0.05, c.z, 0.9, 0.9, 0.9, '#c98a3c');
+  // planks
+  const a = P(c.x + 0.05, c.y + 0.95, c.z + 0.45), b = P(c.x + 0.95, c.y + 0.95, c.z + 0.45);
+  ctx.strokeStyle = 'rgba(90,50,10,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+  if (c.z > c.tz + 0.25) { // parachute
+    const top = P(c.x + 0.5, c.y + 0.5, c.z + 0.9), ch = P(c.x + 0.5, c.y + 0.5, c.z + 2.4);
+    const r = 34;
+    ctx.strokeStyle = 'rgba(60,60,60,.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(top[0] - 14, top[1]); ctx.lineTo(ch[0] - r, ch[1]); ctx.moveTo(top[0] + 14, top[1]); ctx.lineTo(ch[0] + r, ch[1]); ctx.stroke();
+    ctx.fillStyle = '#ff6b6b'; ctx.beginPath(); ctx.arc(ch[0], ch[1], r, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(ch[0], ch[1]); ctx.arc(ch[0], ch[1], r, Math.PI * 1.33, Math.PI * 1.66); ctx.fill();
+  }
+}
+
+/* ---------- solids and flat shapes ---------- */
+const SOLIDS = [
+  { k: 'wuerfel', acc: 'den Würfel', nom: 'der Würfel', hint: 'Der Würfel hat 6 gleich große Quadrate als Flächen.' },
+  { k: 'quader', acc: 'den Quader', nom: 'der Quader', hint: 'Der Quader ist lang wie ein Ziegelstein.' },
+  { k: 'zylinder', acc: 'den Zylinder', nom: 'der Zylinder', hint: 'Der Zylinder ist rund wie eine Dose. Oben hat er einen Kreis.' },
+  { k: 'kugel', acc: 'die Kugel', nom: 'die Kugel', hint: 'Die Kugel ist ganz rund wie ein Ball.' },
+  { k: 'pyramide', acc: 'die Pyramide', nom: 'die Pyramide', hint: 'Die Pyramide hat oben eine Spitze und Dreiecke an den Seiten.' },
+];
+const FLATS = [
+  { k: 'kreis', acc: 'den Kreis', nom: 'der Kreis', hint: 'Der Kreis ist rund und hat keine Ecken.' },
+  { k: 'dreieck', acc: 'das Dreieck', nom: 'das Dreieck', hint: 'Das Dreieck hat 3 Ecken und 3 Seiten.' },
+  { k: 'quadrat', acc: 'das Quadrat', nom: 'das Quadrat', hint: 'Das Quadrat hat 4 gleich lange Seiten.' },
+  { k: 'rechteck', acc: 'das Rechteck', nom: 'das Rechteck', hint: 'Das Rechteck hat 2 lange und 2 kurze Seiten.' },
+];
+function shadow(x, y, rx, ry) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); }
+function drawSolid(k, cx, cy, col) {
+  shadow(cx, cy + 4, 46, 17);
+  if (k === 'wuerfel') { drawBox(isoP(cx, cy, 36), -0.5, -0.5, 0, 1, 1, 1, col); }
+  else if (k === 'quader') { drawBox(isoP(cx, cy, 30), -1, -0.5, 0, 2, 1, 0.85, col); }
+  else if (k === 'zylinder') {
+    const rx = 31, ry = 15, h = 62;
+    const g = ctx.createLinearGradient(cx - rx, 0, cx + rx, 0); g.addColorStop(0, shade(col, 0.75)); g.addColorStop(0.4, shade(col, 1.1)); g.addColorStop(1, shade(col, 0.6));
+    ctx.beginPath(); ctx.moveTo(cx - rx, cy - h); ctx.lineTo(cx - rx, cy); ctx.ellipse(cx, cy, rx, ry, 0, Math.PI, 0, true); ctx.lineTo(cx + rx, cy - h); ctx.closePath();
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.3; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy - h, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = shade(col, 1.25); ctx.fill(); ctx.stroke();
+  } else if (k === 'kugel') {
+    const g = ctx.createRadialGradient(cx - 10, cy - 44, 4, cx, cy - 32, 34); g.addColorStop(0, shade(col, 1.5)); g.addColorStop(1, shade(col, 0.7));
+    ctx.beginPath(); ctx.arc(cx, cy - 32, 33, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1.3; ctx.stroke();
+  } else if (k === 'pyramide') {
+    const P = isoP(cx, cy, 40), ap = P(0, 0, 1.6);
+    poly([P(-0.5, 0.5, 0), P(0.5, 0.5, 0), ap], col);
+    poly([P(0.5, -0.5, 0), P(0.5, 0.5, 0), ap], shade(col, 0.72));
+  }
+}
+function drawFlat(k, cx, cy, col) {
+  ctx.save(); ctx.translate(cx, cy); // seen from the plane: straight from above, so a square stays a square
+  const path = () => {
+    ctx.beginPath();
+    if (k === 'kreis') ctx.arc(0, 0, 34, 0, Math.PI * 2);
+    else if (k === 'quadrat') ctx.rect(-30, -30, 60, 60);
+    else if (k === 'rechteck') ctx.rect(-46, -22, 92, 44);
+    else if (k === 'dreieck') { ctx.moveTo(-6, -42); ctx.lineTo(38, 30); ctx.lineTo(-40, 26); ctx.closePath(); }
+  };
+  ctx.translate(3, 3); path(); ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fill(); ctx.translate(-3, -3);
+  path(); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = shade(col, 0.6); ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------- plan grids ---------- */
+function drawPlan(plan, x0, y0, c, opt = {}) {
+  const n = plan.length, m = plan[0].length;
+  for (let y = 0; y < n; y++) for (let x = 0; x < m; x++) {
+    const X = x0 + x * c, Y = y0 + y * c;
+    const sel = opt.sel && opt.sel.x === x && opt.sel.y === y;
+    ctx.fillStyle = sel ? '#fff3b0' : '#fff'; ctx.fillRect(X, Y, c, c);
+    ctx.strokeStyle = '#24324a'; ctx.lineWidth = 2; ctx.strokeRect(X, Y, c, c);
+    const v = plan[y][x];
+    if (v !== null && v !== undefined) text(String(v), X + c / 2, Y + c / 2 + 2, c * 0.55);
+    else if (opt.ghost && opt.ghost[y] && opt.ghost[y][x] != null) text(String(opt.ghost[y][x]), X + c / 2, Y + c / 2 + 2, c * 0.55, 'rgba(36,50,74,.3)');
+    if (opt.ghostWrong && opt.ghostWrong.x === x && opt.ghostWrong.y === y) text(String(opt.ghostWrong.v), X + c - 10, Y + 12, 15, '#2f7fd1');
+    if (opt.wrong && opt.wrong.has(x + ',' + y)) { ctx.setLineDash([6, 4]); ctx.strokeStyle = '#ef7d22'; ctx.lineWidth = 4; ctx.strokeRect(X + 4, Y + 4, c - 8, c - 8); ctx.setLineDash([]); }
+  }
+  text('vorn', x0 + (m * c) / 2, y0 + n * c + 16, 16);
+}
+function card(x, y, w, h, title) {
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; rr(x, y, w, h, 16); ctx.fill();
+  text(title, x + w / 2, y + 20, 18);
+}
+
+/* ---------- plane ---------- */
+const plane = { x: -160, y: 92, speed: 150, pass: null, smoke: null, t: 0 };
+function startPass(pass) { plane.x = -140; plane.speed = 560; plane.pass = pass; SND.whoosh(); }
+function updPlane(dt) {
+  plane.t += dt; plane.x += plane.speed * dt;
+  const p = plane.pass;
+  if (p && p.releaseX != null && !p.released && plane.x >= p.releaseX) { p.released = true; p.onRelease(); }
+  if (plane.smoke && Math.random() < 0.9) parts.push({ x: plane.x - 46, y: plane.y + 6 + bob(), vx: -40, vy: (Math.random() - 0.5) * 20, life: 1.6, age: 0, c: plane.smoke, kind: 'trail', r: 8, rot: 0, vr: 0 });
+  if (plane.x > W + 170) { if (p && p.onEnd) p.onEnd(); plane.pass = null; plane.smoke = null; plane.speed = 150; plane.x = -170; }
+}
+const bob = () => Math.sin(plane.t * 2.2) * 4;
+function drawPlane() {
+  const x = plane.x, y = plane.y + bob();
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(plane.t * 2.2 + 1) * 0.03);
+  // tail
+  poly([[-48, -4], [-60, -30], [-44, -30], [-30, -6]], '#c4312b', 'rgba(0,0,0,.3)');
+  // back wing
+  poly([[-6, -2], [16, -16], [26, -16], [12, 0]], '#9e2621', null);
+  // body
+  ctx.beginPath(); ctx.ellipse(0, 0, 52, 15, 0, 0, Math.PI * 2); ctx.fillStyle = '#e0413a'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1.3; ctx.stroke();
+  ctx.fillStyle = '#ffffff55'; ctx.beginPath(); ctx.ellipse(-4, -6, 38, 4, 0, 0, Math.PI * 2); ctx.fill();
+  // cockpit and pilot
+  ctx.beginPath(); ctx.ellipse(14, -12, 14, 10, 0, Math.PI, 0); ctx.fillStyle = '#bfe8ff'; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(14, -14, 6, 0, Math.PI * 2); ctx.fillStyle = '#f5c99b'; ctx.fill();
+  ctx.fillStyle = '#7a4a1e'; ctx.fillRect(8, -21, 12, 4);
+  // front wing
+  poly([[-10, 4], [22, 4], [10, 22], [-18, 22]], '#ffd23f', 'rgba(0,0,0,.3)');
+  // nose and propeller
+  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(52, 0, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(80,80,80,.55)'; const pr = Math.abs(Math.sin(plane.t * 40)) * 22 + 4;
+  ctx.fillRect(56, -pr, 3, pr * 2);
+  // star on the tail
+  ctx.fillStyle = '#fff'; drawStar(-48, -20, 6, -Math.PI / 2);
+  ctx.restore();
+}
+
+/* ---------- background ---------- */
+const clouds = [...Array(5)].map((_, i) => ({ x: i * 230 + Math.random() * 80, y: 110 + Math.random() * 30, s: 0.7 + Math.random() * 0.6 }));
+function drawBg(dt) {
+  const g = ctx.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, '#5fb4ef'); g.addColorStop(1, '#bfe6ff');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 200);
+  for (const c of clouds) {
+    c.x += dt * 12 * c.s; if (c.x > W + 120) c.x = -120;
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    [[0, 0, 26], [24, -8, 22], [46, 0, 20], [22, 6, 22]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(c.x + dx * c.s, c.y + dy * c.s, r * c.s, 0, Math.PI * 2); ctx.fill(); });
+  }
+  // hills
+  ctx.fillStyle = '#86c96d'; ctx.beginPath(); ctx.moveTo(0, 200);
+  for (let x = 0; x <= W; x += 32) ctx.lineTo(x, 182 + Math.sin(x / 120) * 14); ctx.lineTo(W, 210); ctx.lineTo(0, 210); ctx.fill();
+  const gg = ctx.createLinearGradient(0, 190, 0, H); gg.addColorStop(0, '#7cc46a'); gg.addColorStop(1, '#4f9b45');
+  ctx.fillStyle = gg; ctx.fillRect(0, 195, W, H - 195);
+  // field stripes
+  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 26;
+  for (let i = -20; i < 40; i++) { ctx.beginPath(); ctx.moveTo(i * 64, 195); ctx.lineTo(i * 64 + 500, H); ctx.stroke(); }
+}
+
+/* ---------- game state ---------- */
+const S = { mode: 'start', stars: 0, busy: false, help: 0, T: null, kbd: false, hover: -1, nextBM: 'bauen' };
+let bombs = [];
+let crates = [];
+let toastTimer = 0;
+function say(t, ms = 2600) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('on'), ms); }
+function banner(t) { $('banner').textContent = t; }
+function addStars(n) { S.stars += n; $('stars').textContent = '★ ' + S.stars; }
+function ui(mode) {
+  $('start').classList.toggle('hide', mode !== 'start');
+  $('top').classList.toggle('hide', mode === 'start');
+  $('bottom').classList.toggle('hide', mode === 'start' || mode === 'treffer');
+  $('digits').classList.toggle('hide', mode !== 'bauen');
+}
+['0', '1', '2', '3', '4'].forEach((d) => { const b = document.createElement('button'); b.textContent = d; b.onclick = () => { ac(); digit(+d); }; $('digits').appendChild(b); });
+
+/* ---------- mode: Treffer ---------- */
+const SLOTS4 = [{ x: 210, y: 430 }, { x: 420, y: 560 }, { x: 640, y: 430 }, { x: 850, y: 560 }];
+const SLOTS3 = [{ x: 360, y: 470 }, { x: 600, y: 560 }, { x: 840, y: 470 }];
+function randPlan(n, lo, hi) { return [...Array(n)].map(() => [...Array(n)].map(() => rnd(lo, hi))); }
+function variants(p) {
+  const n = p.length, out = [];
+  out.push(p.map((r) => r.slice().reverse()));
+  out.push(p.slice().reverse());
+  out.push(p[0].map((_, x) => p.map((r) => r[x]).reverse()));
+  for (let k = 0; k < 6; k++) { const q = p.map((r) => r.slice()); const y = rnd(0, n - 1), x = rnd(0, n - 1); q[y][x] = q[y][x] === 1 ? 2 : q[y][x] - 1; out.push(q); }
+  return out;
+}
+function newTreffer() {
+  S.help = 0; S.busy = false; bombs = [];
+  const kind = pick(['koerper', 'flaeche', 'plan']);
+  const T = { kind, items: [], target: 0, pulse: false, shown: null };
+  if (kind === 'plan') {
+    let p; do { p = randPlan(2, 1, 3); } while (new Set(p.flat()).size < 2);
+    const opts = [p];
+    for (const v of shuffle(variants(p))) { if (opts.length === 3) break; if (!opts.some((o) => eq2(o, v))) opts.push(v); }
+    const cols = shuffle(PAL);
+    T.items = opts.map((plan, i) => ({ plan, col: cols[i] }));
+    T.plan = p;
+  } else {
+    const defs = kind === 'koerper' ? shuffle(SOLIDS).slice(0, 4) : shuffle(FLATS);
+    const cols = shuffle(PAL);
+    T.items = defs.map((d, i) => ({ def: d, col: cols[i] }));
+  }
+  T.target = 0; // items[0] is the answer before shuffling slots
+  T.items.forEach((it, i) => (it.answer = i === 0));
+  placeItems(T);
+  S.T = T;
+  banner(kind === 'plan' ? 'Triff das Gebäude zu diesem Bauplan!' : `Triff ${T.items[0].def.acc}!`);
+}
+function placeItems(T) {
+  const slots = shuffle(T.items.length === 4 ? SLOTS4 : SLOTS3);
+  T.items.forEach((it, i) => { it.x = slots[i].x; it.y = slots[i].y; });
+  S.hover = -1;
+}
+function itemHit(it) { return it.plan ? [it.x, it.y - 40, 85] : it.def && FLATS.includes(it.def) ? [it.x, it.y, 60] : [it.x, it.y - 28, 60]; }
+function dropOn(i) {
+  if (S.busy) return; const T = S.T, it = T.items[i]; if (!it || it.gone) return;
+  S.busy = true; const [hx, hy] = itemHit(it);
+  startPass({
+    releaseX: hx - 150,
+    onRelease() { SND.drop(); bombs.push({ x0: plane.x + 10, y0: plane.y + 18, tx: hx, ty: it.plan ? it.y - 30 : it.y - 10, t: 0, dur: 0.8, i }); },
+  });
+}
+function resolveBomb(b) {
+  const T = S.T, it = T.items[b.i];
+  if (it.answer) {
+    SND.boom(); burst(b.tx, b.ty, 36, CELEB, 'star', 320); burst(b.tx, b.ty, 30, CELEB, 'confetti', 300);
+    it.gone = true; addStars(1); say(pick(['Treffer!', 'Volltreffer!', 'Super gezielt!']), 1400);
+    setTimeout(newTreffer, 1600);
+  } else {
+    SND.puff(); burst(b.tx, b.ty, 12, ['#d9d9d9', '#bdbdbd', '#ffffff'], 'smoke', 90);
+    if (it.plan) { T.shown = it.plan; say('Dieses Gebäude hat einen anderen Bauplan. Vergleiche! Noch ein Anflug.', 3200); }
+    else say(`Das ist ${cap(it.def.nom)}. Noch ein Anflug!`, 2600);
+    setTimeout(() => { placeItems(T); S.busy = false; }, 1500);
+  }
+}
+const cap = (s) => s; // nominative already begins with an article in lower case: "der Würfel"
+function drawTreffer() {
+  const T = S.T;
+  if (T.kind === 'plan') {
+    card(22, 150, 170, 200, 'Bauplan'); drawPlan(T.plan, 47, 182, 60);
+    if (T.shown) { card(22, 370, 170, 200, 'Getroffen'); drawPlan(T.shown, 47, 402, 60); }
+  }
+  // order items by y so the nearer ones draw last
+  const order = T.items.map((it, i) => i).sort((a, b) => T.items[a].y - T.items[b].y);
+  for (const i of order) {
+    const it = T.items[i]; if (it.gone) continue;
+    const [hx, hy, hr] = itemHit(it);
+    if (i === S.hover && !S.busy) { ctx.strokeStyle = 'rgba(255,230,90,.95)'; ctx.lineWidth = 4; ctx.setLineDash([10, 6]); ctx.beginPath(); ctx.ellipse(it.x, it.y + 6, hr * 0.95, hr * 0.38, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+    if (T.pulse && it.answer) { const a = 0.5 + 0.5 * Math.sin(performance.now() / 180); ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(it.x, it.y + 6, hr, hr * 0.42, 0, 0, Math.PI * 2); ctx.stroke(); }
+    if (it.plan) { drawBuilding(it.plan, it.x, it.y, 30, it.col); text('vorn', it.x - 52, it.y + 34, 14, 'rgba(255,255,255,.85)'); }
+    else if (FLATS.includes(it.def)) drawFlat(it.def.k, it.x, it.y, it.col);
+    else drawSolid(it.def.k, it.x, it.y, it.col);
+  }
+  // bombs
+  for (const b of bombs) {
+    const p = Math.min(1, b.t / b.dur), x = b.x0 + (b.tx - b.x0) * p, y = b.y0 + (b.ty - b.y0) * p * p;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(0.3 + p * 1.1);
+    poly([[-14, -5], [-22, -10], [-22, 10], [-14, 5]], '#ffd23f', 'rgba(0,0,0,.3)');
+    ctx.beginPath(); ctx.ellipse(0, 0, 15, 10, 0, 0, Math.PI * 2); ctx.fillStyle = '#2e3d63'; ctx.fill();
+    ctx.fillStyle = '#ffffff66'; ctx.beginPath(); ctx.ellipse(-3, -4, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+function updBombs(dt) {
+  for (const b of bombs) { b.t += dt; if (b.t >= b.dur && !b.done) { b.done = true; resolveBomb(b); } }
+  bombs = bombs.filter((b) => !b.done);
+}
+
+/* ---------- building generator for Bauen und Malen ---------- */
+function genBuilding(n) {
+  for (;;) {
+    const h = randPlan(n, n === 2 ? 1 : 0, 3);
+    let ok = h.flat().filter((v) => v > 0).length >= (n === 2 ? 4 : 5) && Math.max(...h.flat()) >= 2;
+    // keep every stack readable: a stack must be at least as tall as the stack diagonally in front of it
+    for (let y = 0; y < n - 1; y++) for (let x = 0; x < n - 1; x++) if (h[y][x] < h[y + 1][x + 1]) ok = false;
+    if (ok) return h;
+  }
+}
+
+/* ---------- mode: Bauen (fill in the building plan, crates drop) ---------- */
+const FIELD = { cx: 560, cy: 420, s: 50 };
+function newBauen() {
+  S.mode = 'bauen'; ui('bauen'); S.help = 0; S.busy = false; crates = [];
+  const n = Math.random() < 0.4 ? 2 : 3;
+  const target = genBuilding(n);
+  S.T = { kind: 'bauen', n, target, plan: target.map((r) => r.map(() => null)), built: target.map((r) => r.map(() => 0)), sel: { x: 0, y: 0 }, wrong: new Set(), col: pick(PAL), ghost: null, ghostWrong: null };
+  banner('Baue das Gebäude nach. Schreib den Bauplan!');
+}
+const planBox = () => { const c = 62, n = S.T.n; return { x0: 1000 - n * c - 20, y0: 250, c }; };
+function digit(v) {
+  const T = S.T; if (S.mode !== 'bauen' || S.busy || v > 4) return;
+  const { x, y } = T.sel; T.plan[y][x] = v; T.wrong.delete(x + ',' + y);
+  const falling = crates.filter((c) => c.x === x && c.y === y);
+  const have = T.built[y][x] + falling.length;
+  if (v > have) {
+    if (!plane.pass) startPass({});
+    const P = bOrigin(T.built, FIELD.cx, FIELD.cy, FIELD.s), sx = P(x + 0.5, y + 0.5, 0)[0];
+    const base = Math.max(0, (sx - plane.x) / plane.speed);
+    for (let k = have; k < v; k++) crates.push({ x, y, z: 6.5, tz: k, vz: 0, delay: base + (k - have) * 0.22 });
+  } else if (v < have) {
+    crates = crates.filter((c) => !(c.x === x && c.y === y && c.tz >= v));
+    if (T.built[y][x] > v) {
+      const P = bOrigin(T.built, FIELD.cx, FIELD.cy, FIELD.s), p = P(x + 0.5, y + 0.5, T.built[y][x]);
+      burst(p[0], p[1], 10, ['#e8e8e8', '#cfcfcf'], 'smoke', 80); SND.puff(); T.built[y][x] = v;
+    }
+  }
+  // move on to the next square of the plan
+  const n = T.n, i = y * n + x + 1; if (i < n * n) T.sel = { x: i % n, y: Math.floor(i / n) };
+}
+function updCrates(dt) {
+  if (S.mode !== 'bauen') return; const T = S.T;
+  for (const c of crates) {
+    if (c.delay > 0) { c.delay -= dt; continue; }
+    const chute = c.z > c.tz + 0.25; c.vz = chute ? 2.6 : c.vz + dt * 20; c.z -= c.vz * dt;
+    if (c.z <= c.tz) { c.z = c.tz; c.done = true; T.built[c.y][c.x] = Math.max(T.built[c.y][c.x], c.tz + 1); SND.thud(); }
+  }
+  crates = crates.filter((c) => !c.done);
+}
+function doneBauen() {
+  const T = S.T; if (S.busy || crates.length) return;
+  T.wrong = new Set();
+  for (let y = 0; y < T.n; y++) for (let x = 0; x < T.n; x++) if ((T.plan[y][x] ?? 0) !== T.target[y][x] || T.plan[y][x] === null) T.wrong.add(x + ',' + y);
+  if (!T.wrong.size) {
+    S.busy = true; SND.cheer(); addStars(3); say('Super gebaut! Der Bauplan stimmt.', 2000);
+    const P = bOrigin(T.built, FIELD.cx, FIELD.cy, FIELD.s), p = P(T.n / 2, T.n / 2, 3);
+    burst(p[0], p[1], 50, CELEB, 'confetti', 340);
+    plane.smoke = T.col; if (!plane.pass) startPass({});
+    setTimeout(nextBM, 2400);
+  } else { SND.soft(); say('Fast! Schau dir die markierten Türme noch mal an.'); }
+}
+function drawBauen() {
+  const T = S.T;
+  card(20, 150, 300, 330, 'So soll es aussehen');
+  drawBuilding(T.target, 170, 345, T.n === 2 ? 40 : 34, T.col);
+  text('vorn', 72, 430, 15);
+  const P = drawBuilding(T.built, FIELD.cx, FIELD.cy, FIELD.s, T.col, { tiles: true, sel: S.busy ? null : T.sel, wrong: T.wrong, crates });
+  const f = P(T.n / 2, T.n, 0); text('vorn', f[0] - 70, f[1] + 18, 18, '#fff');
+  const { x0, y0, c } = planBox();
+  card(x0 - 16, y0 - 50, T.n * c + 32, T.n * c + 100, 'Bauplan');
+  drawPlan(T.plan, x0, y0, c, { sel: S.busy ? null : T.sel, wrong: T.wrong, ghost: T.ghost, ghostWrong: T.ghostWrong });
+}
+
+/* ---------- mode: Malen (color a view) ---------- */
+const VIEWS = { vorn: 'von vorn', rechts: 'von rechts', links: 'von links', oben: 'von oben' };
+function viewOf(h, v) {
+  const n = h.length, rows = 3, out = [];
+  if (v === 'oben') return h.map((r) => r.map((x) => x > 0));
+  for (let r = 0; r < rows; r++) {
+    const z = rows - 1 - r, row = [];
+    for (let j = 0; j < n; j++) {
+      let mx = 0;
+      if (v === 'vorn') for (let y = 0; y < n; y++) mx = Math.max(mx, h[y][j]);
+      if (v === 'rechts') { const y = n - 1 - j; for (let x = 0; x < n; x++) mx = Math.max(mx, h[y][x]); }
+      if (v === 'links') { const y = j; for (let x = 0; x < n; x++) mx = Math.max(mx, h[y][x]); }
+      row.push(mx > z);
+    }
+    out.push(row);
+  }
+  return out;
+}
+function newMalen() {
+  S.mode = 'malen'; ui('malen'); S.help = 0; S.busy = false;
+  // a view worth coloring: not all squares, not empty, and the columns differ
+  let h, view, exp;
+  do { h = genBuilding(3); view = pick(Object.keys(VIEWS)); exp = viewOf(h, view); }
+  while (exp.flat().every(Boolean) || new Set(exp[0].map((_, c) => exp.map((r) => r[c]).join())).size < 2);
+  S.T = { kind: 'malen', h, view, exp, paint: exp.map((r) => r.map(() => false)), cur: { r: exp.length - 1, c: 0 }, wrong: new Set(), col: pick(PAL), ghost: false };
+  banner(`Male das Gebäude ${VIEWS[view]}.`);
+}
+const paintBox = () => ({ x0: 730, y0: 250, c: 70 });
+function toggleCell(r, c) {
+  const T = S.T; if (S.busy || !T.paint[r] || T.paint[r][c] === undefined) return;
+  T.paint[r][c] = !T.paint[r][c]; T.wrong.delete(r + ',' + c); T.cur = { r, c };
+  const { x0, y0, c: cs } = paintBox();
+  if (T.paint[r][c]) { SND.splat(); burst(x0 + c * cs + cs / 2, y0 + r * cs + cs / 2, 10, [T.col, shade(T.col, 1.3)], 'smoke', 60); }
+}
+function doneMalen() {
+  const T = S.T; if (S.busy) return;
+  T.wrong = new Set();
+  T.exp.forEach((row, r) => row.forEach((v, c) => { if (v !== T.paint[r][c]) T.wrong.add(r + ',' + c); }));
+  if (!T.wrong.size) {
+    S.busy = true; SND.cheer(); addStars(3); say('Genau so sieht es ' + VIEWS[T.view] + ' aus!', 2000);
+    plane.smoke = T.col; startPass({});
+    const { x0, y0, c } = paintBox(); burst(x0 + 1.5 * c, y0 + 1.5 * c, 50, CELEB, 'confetti', 340);
+    setTimeout(nextBM, 2600);
+  } else { SND.soft(); say('Fast! Die markierten Kästchen stimmen noch nicht.'); }
+}
+function drawEye(x, y, tx, ty, label) {
+  // arrow from the viewer to the building
+  const a = Math.atan2(ty - y, tx - x), ex = tx - Math.cos(a) * 26, ey = ty - Math.sin(a) * 26;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([10, 7]); ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 30, y + Math.sin(a) * 30); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+  poly([[ex + Math.cos(a) * 14, ey + Math.sin(a) * 14], [ex + Math.cos(a + 2.4) * 12, ey + Math.sin(a + 2.4) * 12], [ex + Math.cos(a - 2.4) * 12, ey + Math.sin(a - 2.4) * 12]], '#fff', null);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, y, 18, 11, 0, 0, Math.PI * 2); ctx.strokeStyle = '#24324a'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#2f7fd1'; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 4, y + Math.sin(a) * 3, 6, 0, Math.PI * 2); ctx.fill();
+  text(label, x, y + 42, 17, '#fff');
+}
+function drawMalen() {
+  const T = S.T, cx = 360, cy = 430, s = 54;
+  const P = drawBuilding(T.h, cx, cy, s, T.col);
+  const n = 3, mid = P(n / 2, n / 2, 1.2);
+  const spots = { vorn: P(n / 2, n + 2.2, 0.3), rechts: P(n + 2.2, n / 2, 0.3), links: P(-2.4, n / 2 - 1.4, 0.2), oben: P(n / 2 - 1.2, n / 2 - 1.2, 5.2) };
+  const sp = spots[T.view];
+  drawEye(sp[0], sp[1], mid[0], mid[1], T.view === 'oben' ? 'Hier fliegst du' : 'Hier stehst du');
+  const f = P(n / 2, n, 0); text('vorn', f[0] - 64, f[1] + 18, 16, 'rgba(255,255,255,.9)');
+  // paint grid
+  const { x0, y0, c } = paintBox(), rows = T.exp.length, cols = T.exp[0].length;
+  card(x0 - 18, y0 - 54, cols * c + 36, rows * c + 96, 'Ansicht ' + VIEWS[T.view]);
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
+    const X = x0 + k * c, Y = y0 + r * c;
+    ctx.fillStyle = T.paint[r][k] ? T.col : '#fff'; ctx.fillRect(X, Y, c, c);
+    if (!T.paint[r][k] && T.ghost && T.exp[r][k]) { ctx.fillStyle = T.col; ctx.globalAlpha = 0.25; ctx.fillRect(X, Y, c, c); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = '#9aa7c7'; ctx.lineWidth = 1.5; ctx.strokeRect(X, Y, c, c);
+    if (T.wrong.has(r + ',' + k)) { ctx.setLineDash([6, 4]); ctx.strokeStyle = '#ef7d22'; ctx.lineWidth = 4; ctx.strokeRect(X + 4, Y + 4, c - 8, c - 8); ctx.setLineDash([]); }
+    if (S.kbd && T.cur.r === r && T.cur.c === k && !S.busy) { ctx.strokeStyle = '#ffb000'; ctx.lineWidth = 4; ctx.strokeRect(X + 2, Y + 2, c - 4, c - 4); }
+  }
+  ctx.strokeStyle = '#24324a'; ctx.lineWidth = 2.5; ctx.strokeRect(x0, y0, cols * c, rows * c);
+  text(T.view === 'oben' ? 'vorn' : 'unten', x0 + (cols * c) / 2, y0 + rows * c + 18, 16);
+}
+
+/* ---------- flow ---------- */
+function nextBM() { if (S.nextBM === 'bauen') { S.nextBM = 'malen'; newBauen(); } else { S.nextBM = 'bauen'; newMalen(); } }
+function goStart() { S.mode = 'start'; ui('start'); bombs = []; crates = []; plane.pass = null; plane.smoke = null; }
+$('b-treffer').onclick = () => { ac(); S.mode = 'treffer'; ui('treffer'); newTreffer(); };
+$('b-bauen').onclick = () => { ac(); S.nextBM = 'bauen'; nextBM(); };
+$('home').onclick = goStart;
+$('done').onclick = () => { ac(); S.mode === 'bauen' ? doneBauen() : doneMalen(); };
+$('help').onclick = () => { ac(); help(); };
+function help() {
+  const T = S.T; if (!T || S.busy) return; S.help++;
+  if (S.mode === 'treffer') {
+    if (S.help === 1) say(T.kind === 'plan' ? 'Such im Bauplan die größte Zahl. Dort steht der höchste Turm.' : T.items.find((i) => i.answer).def.hint, 3600);
+    else { T.pulse = true; say('Schau, wo es blinkt.'); }
+  } else if (S.mode === 'bauen') {
+    if (S.help === 1) say('Zähle in jedem Turm die Würfel von unten nach oben. Vorn ist im Bauplan unten.', 4000);
+    else if (S.help === 2) {
+      let w = null; for (let y = 0; y < T.n && !w; y++) for (let x = 0; x < T.n && !w; x++) if (T.plan[y][x] !== T.target[y][x]) w = { x, y, v: T.target[y][x] };
+      if (w) { T.ghostWrong = w; T.sel = { x: w.x, y: w.y }; say(`Hier stehen ${w.v} Würfel.`); }
+    } else { T.ghost = T.target; say('Hier ist der ganze Bauplan.'); }
+  } else if (S.mode === 'malen') {
+    const hints = { vorn: 'Stell dir vor, du stehst vorn. In jeder Spalte siehst du nur den höchsten Turm.', rechts: 'Geh in Gedanken nach rechts. Vorn ist jetzt links von dir.', links: 'Geh in Gedanken nach links. Vorn ist jetzt rechts von dir.', oben: 'Du fliegst darüber. Jeder Turm ist von oben ein Quadrat, egal wie hoch.' };
+    if (S.help === 1) say(hints[T.view], 4200); else { T.ghost = true; say('So sieht es aus. Male es nach.'); }
+  }
+}
+
+/* ---------- input ---------- */
+function pos(e) { const r = cv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]; }
+function itemAt(x, y) { const T = S.T; let best = -1, bd = 1e9; T.items.forEach((it, i) => { if (it.gone) return; const [hx, hy, hr] = itemHit(it); const d = Math.hypot(x - hx, y - hy); if (d < hr && d < bd) { bd = d; best = i; } }); return best; }
+cv.addEventListener('pointermove', (e) => { if (S.mode !== 'treffer') return; S.kbd = false; const [x, y] = pos(e); S.hover = itemAt(x, y); });
+cv.addEventListener('pointerdown', (e) => {
+  ac(); S.kbd = false; const [x, y] = pos(e);
+  if (S.mode === 'treffer') { const i = itemAt(x, y); if (i >= 0) dropOn(i); }
+  else if (S.mode === 'bauen') {
+    const T = S.T, { x0, y0, c } = planBox();
+    const px = Math.floor((x - x0) / c), py = Math.floor((y - y0) / c);
+    if (px >= 0 && py >= 0 && px < T.n && py < T.n) { T.sel = { x: px, y: py }; return; }
+    // a tile on the field
+    const P0 = bOrigin(T.built, FIELD.cx, FIELD.cy, FIELD.s), o = P0(0, 0, 0), s = FIELD.s;
+    const u = (x - o[0]) / s, v = (y - o[1]) / (s * 0.5), a = Math.floor((u + v) / 2), b = Math.floor((v - u) / 2);
+    if (a >= 0 && b >= 0 && a < T.n && b < T.n) T.sel = { x: a, y: b };
+  } else if (S.mode === 'malen') {
+    const T = S.T, { x0, y0, c } = paintBox();
+    const k = Math.floor((x - x0) / c), r = Math.floor((y - y0) / c);
+    if (r >= 0 && k >= 0 && r < T.exp.length && k < T.exp[0].length) toggleCell(r, k);
+  }
+});
+addEventListener('keydown', (e) => {
+  if (S.mode === 'start') { if (e.key === 'Enter') $('b-treffer').click(); return; }
+  ac(); S.kbd = true;
+  if (e.key === 'Escape') return goStart();
+  if (e.key === 'h' || e.key === 'H') return help();
+  const T = S.T, dx = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0, dy = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+  if (S.mode === 'treffer') {
+    const live = T.items.map((it, i) => i).filter((i) => !T.items[i].gone).sort((a, b) => T.items[a].x - T.items[b].x);
+    if (dx || dy) { e.preventDefault(); const k = live.indexOf(S.hover); S.hover = live[(k + (dx || dy) + live.length) % live.length] ?? live[0]; }
+    if ((e.key === 'Enter' || e.key === ' ') && S.hover >= 0) { e.preventDefault(); dropOn(S.hover); }
+  } else if (S.mode === 'bauen') {
+    if (dx || dy) { e.preventDefault(); T.sel = { x: (T.sel.x + dx + T.n) % T.n, y: (T.sel.y + dy + T.n) % T.n }; }
+    if (/^[0-4]$/.test(e.key)) digit(+e.key);
+    if (e.key === 'Enter') doneBauen();
+  } else if (S.mode === 'malen') {
+    const rows = T.exp.length, cols = T.exp[0].length;
+    if (dx || dy) { e.preventDefault(); T.cur = { r: (T.cur.r + dy + rows) % rows, c: (T.cur.c + dx + cols) % cols }; }
+    if (e.key === ' ') { e.preventDefault(); toggleCell(T.cur.r, T.cur.c); }
+    if (e.key === 'Enter') doneMalen();
+  }
+});
+
+/* ---------- loop ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  ctx.clearRect(0, 0, W, H);
+  drawBg(dt);
+  if (S.mode !== 'start') {
+    updPlane(dt); updBombs(dt); updCrates(dt); updParts(dt);
+    if (S.mode === 'treffer') drawTreffer();
+    else if (S.mode === 'bauen') drawBauen();
+    else if (S.mode === 'malen') drawMalen();
+    drawParts();
+    drawPlane();
+  }
+  requestAnimationFrame(frame);
+}
+ui('start');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

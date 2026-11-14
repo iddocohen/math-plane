@@ -17,6 +17,7 @@
 import { CELEBRATION, SMOKE, WATER } from './palette';
 import type { ParticleImage, ParticleInit } from './particles';
 import { WORLD_HEIGHT, WORLD_WIDTH } from './world';
+import { BOMB_STYLES, type BombStyle } from '../core/rewards/items';
 
 /** The dot, star and confetti textures are this many pixels wide. */
 export const PARTICLE_TEXTURE_SIZE = 32;
@@ -37,9 +38,8 @@ const K = WORLD_WIDTH / 1024;
 /** The prototype's pull on falling particles, scaled. */
 const GRAVITY = 420 * K;
 
-/** The bomb styles of the Hangar (T065): confetti is the default. */
-export const BOMB_STYLES = ['confetti', 'water', 'stars', 'bubbles'] as const;
-export type BombStyle = (typeof BOMB_STYLES)[number];
+/** The bomb styles of the Hangar (core/rewards/items.ts): confetti is the default. */
+export { BOMB_STYLES, type BombStyle };
 
 /** The most particles alive at once in the effect layer, and in the trail layer. */
 export const EFFECT_CAPACITY = 160;

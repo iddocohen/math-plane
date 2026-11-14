@@ -1,8 +1,8 @@
 // Structure adapted from math-soccer src/app/App.tsx.
 /**
  * The app shell: the start screen (StartScreen.tsx), the round with the Phaser canvas (RoundScene.ts) under a React
- * overlay (RoundOverlay.tsx), the pause screen and the round end over the round, and the Hangar, parent and transfer
- * screens (stand-ins in Placeholders.tsx until their tasks build them).
+ * overlay (RoundOverlay.tsx), the pause screen and the round end over the round, and the Hangar (Hangar.tsx), parent
+ * and transfer screens.
  *
  * A round is one RoundController with the rules of its mode (modeRules.ts). The app saves the round after every event,
  * so a refresh continues it; adds each earned star to the Hangar at once; records each finished task; and saves the
@@ -17,7 +17,9 @@
  *
  * Pause and home: the pause button or Escape pauses the round with "Pause"; the home button pauses it and asks "Runde
  * beenden?". "Zum Start" leaves the round without a round end. The Hangar icon opens the Hangar over the round and
- * pauses it; closing the Hangar continues the round unless the child paused it.
+ * pauses it; closing the Hangar continues the round unless the child paused it. A look bought or chosen there is
+ * stored and shown on the round's plane at once (`showLook`); the next round's scene reads it when it starts. With
+ * "Hangar und Sterne" off, the start screen, the round and the round end show neither the Hangar nor the stars.
  *
  * Parent screens (FR-050, FR-054): the gear (ParentGate.tsx) opens the parent menu after a 2-second hold and pauses the
  * round. "Einstellungen" and "Fortschritt" open their pages over the screen. Saved settings reach the app at once (the
@@ -33,7 +35,8 @@ import { createSfx } from '../audio/sfx';
 import { createSpeaker } from '../audio/speaker';
 import { RoundController, type RoundSummary } from '../core/round/RoundController';
 import type { ModeRules } from '../core/round/rules';
-import type { StoredRound } from '../core/storage/schemas';
+import { lookOf } from '../core/rewards/hangar';
+import type { Hangar as HangarData, StoredRound } from '../core/storage/schemas';
 import { localStorageKeyValue } from '../core/storage/keyValue';
 import { currentLevel, levelDef, levelRange } from '../core/tasks/levels';
 import type { Settings } from '../core/settings/schema';
@@ -47,7 +50,7 @@ import { rulesFor } from './modeRules';
 import { PauseScreen } from './PauseScreen';
 import { createPersistence, type DataKind, type Persistence } from './persistence';
 import { ParentGate } from './ParentGate';
-import { HangarScreen } from './Placeholders';
+import { Hangar } from './Hangar';
 import { ProgressPage } from './ProgressPage';
 import { createPlayClock, playSpeed, seedFromUrl, speedFromUrl, testFromUrl } from './playClock';
 import { RoundEnd } from './RoundEnd';
@@ -162,7 +165,7 @@ export function App() {
   const [parts] = useState(createApp);
   const { persistence, saves, clock, sfx, speaker } = parts;
   const [settings, setSettings] = useState(() => persistence.settings());
-  const [stars, setStars] = useState(() => persistence.hangar().stars);
+  const [hangar, setHangar] = useState(() => persistence.hangar());
   const [round, setRound] = useState<Round | null>(null);
   const [summary, setSummary] = useState<RoundSummary | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -197,7 +200,7 @@ export function App() {
       controller.subscribe((e) => {
         if (e.type === 'starsAwarded') {
           saves.report(persistence.awardStars(e.n));
-          setStars(persistence.hangar().stars);
+          setHangar(persistence.hangar());
         } else if (e.type === 'attemptRecorded') {
           // The settings the round uses now: the parent may have changed them during the round (FR-054).
           saves.report(persistence.recordAttempt(e.record, persistence.settings()));
@@ -269,7 +272,7 @@ export function App() {
     setSummary(null);
     setPauseKind(null);
     setMessage(null);
-    setStars(persistence.hangar().stars);
+    setHangar(persistence.hangar());
   }, [persistence, round]);
 
   // The game: loaded with the first round, then one scene per round; asleep while no round shows.
@@ -287,12 +290,16 @@ export function App() {
     let cancelled = false;
     void loadGame().then(({ createGame }) => {
       if (cancelled || gameRef.current) return;
-      gameRef.current = createGame(host, round.controller, { speed: parts.speed, sound: (name) => sfx.play(name) });
+      gameRef.current = createGame(host, round.controller, {
+        speed: parts.speed,
+        sound: (name) => sfx.play(name),
+        look: () => lookOf(persistence.hangar()),
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [round, host, parts.speed, sfx]);
+  }, [round, host, parts.speed, sfx, persistence]);
 
   useEffect(() => () => gameRef.current?.destroy(), []);
 
@@ -321,6 +328,17 @@ export function App() {
     setOverlay('hangar');
   }, [round]);
 
+  // A purchase or a choice in the Hangar: stored, and shown at once on the plane of a paused round (FR-045).
+  const changeHangar = useCallback(
+    (next: HangarData) => {
+      saves.report(persistence.saveHangar(next));
+      const stored = persistence.hangar();
+      setHangar(stored);
+      gameRef.current?.showLook(lookOf(stored));
+    },
+    [persistence, saves],
+  );
+
   const closeOverlay = useCallback(() => {
     setOverlay(null);
     if (round && pauseKind === null) round.controller.resume();
@@ -345,7 +363,7 @@ export function App() {
     savedSettings.current = null;
     if (saved !== null && round) round.controller.applySettings(saved);
     // A reset or a loaded file may have changed the stars and the levels.
-    setStars(persistence.hangar().stars);
+    setHangar(persistence.hangar());
     setDataVersion((n) => n + 1);
     if (round && pauseKind === null && overlay === null) round.controller.resume();
   }, [round, pauseKind, overlay, persistence]);
@@ -384,7 +402,7 @@ export function App() {
     const next = persistence.settings();
     setSettings(next);
     round?.controller.applySettings(next);
-    setStars(persistence.hangar().stars);
+    setHangar(persistence.hangar());
     setDataVersion((n) => n + 1);
     closeTransfer();
   }, [transfer, persistence, closeTransfer, round]);
@@ -480,7 +498,7 @@ export function App() {
           modes={modes}
           onStart={startRound}
           gear={gear}
-          hangar={settings.hangar ? { stars, onOpen: openHangar } : null}
+          hangar={settings.hangar ? { stars: hangar.stars, onOpen: openHangar } : null}
           notices={notices}
         />
       ) : (
@@ -515,7 +533,7 @@ export function App() {
           onBack={goStart}
         />
       )}
-      {overlay === 'hangar' && <HangarScreen stars={stars} onBack={closeOverlay} />}
+      {overlay === 'hangar' && <Hangar hangar={hangar} onChange={changeHangar} onBack={closeOverlay} />}
       {parent === 'settings' && <SettingsPage persistence={persistence} onSaved={settingsSaved} onClose={closeParent} />}
       {parent === 'progress' && <ProgressPage persistence={persistence} onClose={closeParent} />}
       {transfer !== null && transfer.kind !== 'reading' && <TransferDialog state={transfer} onAccept={acceptTransfer} onCancel={dismissTransfer} />}

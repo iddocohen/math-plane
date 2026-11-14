@@ -14,7 +14,7 @@
  */
 import Phaser from 'phaser';
 import type { RoundController } from '../core/round/RoundController';
-import type { PlaneLook } from './PlaneView';
+import type { HangarLook } from '../core/rewards/hangar';
 import { ROUND_SCENE, RoundScene, type RoundSceneOptions } from './RoundScene';
 import type { SceneKey } from './taskViews';
 import { WORLD_HEIGHT, WORLD_WIDTH } from './world';
@@ -30,7 +30,7 @@ export interface GameHandle {
   /** "Fertig": the scene holds it while crates still fall (RoundScene `done`). */
   done(): void;
   /** Shows the look chosen in the Hangar at once. */
-  showLook(look: PlaneLook): void;
+  showLook(look: HangarLook): void;
   destroy(): void;
 }
 

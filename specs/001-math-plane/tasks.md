@@ -127,9 +127,9 @@ description: "Task list for Mathe-Flieger"
 **Goal**: spend stars on looks.
 **Independent Test**: quickstart scenario 8.
 
-- [ ] T065 [P] [US7] Implement `src/core/rewards/items.ts` and `buy`, `choose` in `hangar.ts`: categories plane color, tail picture, smoke color, bomb style (confetti default, water balloon, stars, bubbles), pilot hat; one free default per category; prices 10 to 60 stars; tests that looks never reach task generation (FR-045)
-- [ ] T066 [US7] Implement `src/app/Hangar.tsx` adapted from math-soccer `LockerRoom.tsx`: preview plane, groups, "noch N Sterne", Escape back; opens from the start screen and pauses a round (FR-046)
-- [ ] T067 [US7] Apply looks in `PlaneView.ts` and `BombView.ts` at once; hide Hangar and stars when "Hangar und Sterne" is off; Playwright `tests/e2e/hangar.spec.ts`
+- [X] T065 [P] [US7] Implement `src/core/rewards/items.ts` and `buy`, `choose` in `hangar.ts`: categories plane color, tail picture, smoke color, bomb style (confetti default, water balloon, stars, bubbles), pilot hat; one free default per category; prices 10 to 60 stars; tests that looks never reach task generation (FR-045)
+- [X] T066 [US7] Implement `src/app/Hangar.tsx` adapted from math-soccer `LockerRoom.tsx`: preview plane, groups, "noch N Sterne", Escape back; opens from the start screen and pauses a round (FR-046)
+- [X] T067 [US7] Apply looks in `PlaneView.ts` and `BombView.ts` at once; hide Hangar and stars when "Hangar und Sterne" is off; Playwright `tests/e2e/hangar.spec.ts`
 
 ## Phase 10: Polish and cross-cutting
 

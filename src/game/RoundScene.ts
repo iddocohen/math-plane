@@ -20,8 +20,9 @@ import Phaser from 'phaser';
 import type { SoundName } from '../audio/sfx';
 import type { Phase, RoundController, RoundEvent, RoundState } from '../core/round/RoundController';
 import type { BombStyle } from './effects';
+import type { HangarLook } from '../core/rewards/hangar';
 import { EffectsView, loadParticleImages } from './EffectsView';
-import { DEFAULT_LOOK, PlaneView, type PlaneLook } from './PlaneView';
+import { DEFAULT_LOOK, PlaneView } from './PlaneView';
 import { SkyView } from './SkyView';
 import { TASK_VIEWS, type SceneKey, type TaskView, type TaskViewContext, type TaskViewFactory } from './taskViews';
 
@@ -31,10 +32,8 @@ export const NEXT_DELAY_MS = 1500;
 export interface RoundSceneOptions {
   /** How fast play time runs: 1, or the test hook's factor. Read every frame. */
   speed: () => number;
-  /** The plane's look from the Hangar. */
-  look?: () => PlaneLook;
-  /** The bomb style from the Hangar; confetti without it. */
-  bombStyle?: () => BombStyle;
+  /** The look chosen in the Hangar, read when the scene starts; the prototype's plane and confetti without it. */
+  look?: () => HangarLook;
   /** Plays a sound effect; silent without it. */
   sound?: (name: SoundName) => void;
 }
@@ -54,6 +53,8 @@ export class RoundScene extends Phaser.Scene {
   /** A "Fertig" held until no view is busy. */
   private doneWaiting = false;
   private state!: RoundState;
+  /** The bomb style of the Hangar; BombView reads it on every hit. */
+  private bombStyle: BombStyle = 'confetti';
 
   constructor(controller: RoundController, options: RoundSceneOptions) {
     super(ROUND_SCENE);
@@ -71,7 +72,9 @@ export class RoundScene extends Phaser.Scene {
     this.doneWaiting = false;
     this.sky = new SkyView(this);
     this.effects = new EffectsView(this);
-    this.plane = new PlaneView(this, this.effects.trail, this.options.look?.() ?? DEFAULT_LOOK);
+    const look = this.options.look?.() ?? { ...DEFAULT_LOOK, bomb: 'confetti' };
+    this.plane = new PlaneView(this, this.effects.trail, look);
+    this.bombStyle = look.bomb;
     const ctx: TaskViewContext = {
       scene: this,
       input: this.controller,
@@ -80,7 +83,7 @@ export class RoundScene extends Phaser.Scene {
       playMs: () => this.playMs,
       phase: () => this.state.phase,
       sound: (name) => this.options.sound?.(name),
-      bombStyle: () => this.options.bombStyle?.() ?? 'confetti',
+      bombStyle: () => this.bombStyle,
     };
     this.views = TASK_VIEWS.map((factory) => ({ factory, view: factory.create(ctx) }));
     this.unsubscribe = this.controller.subscribe((e) => this.onEvent(e));
@@ -90,6 +93,7 @@ export class RoundScene extends Phaser.Scene {
     this.showState();
     this.waitIfDone(this.state.phase);
     this.game.canvas?.setAttribute('data-scene', ROUND_SCENE);
+    this.markLook(look);
   }
 
   update(_time: number, delta: number): void {
@@ -126,9 +130,22 @@ export class RoundScene extends Phaser.Scene {
     else this.controller.done();
   }
 
-  /** Shows the look chosen in the Hangar at once. */
-  showLook(look: PlaneLook): void {
+  /** Shows the look chosen in the Hangar at once: the plane now, the bomb style from the next burst. */
+  showLook(look: HangarLook): void {
     this.plane?.setLook(look);
+    this.bombStyle = look.bomb;
+    this.markLook(look);
+  }
+
+  /** For tests: the canvas carries the look the scene uses (`data-plane-color`, `data-bomb-style` and so on). */
+  private markLook(look: HangarLook): void {
+    const canvas = this.game.canvas;
+    if (!canvas) return;
+    canvas.setAttribute('data-plane-color', look.color);
+    canvas.setAttribute('data-plane-tail', look.tail);
+    canvas.setAttribute('data-plane-hat', look.hat);
+    canvas.setAttribute('data-plane-smoke', look.smoke?.join(' ') ?? 'none');
+    canvas.setAttribute('data-bomb-style', look.bomb);
   }
 
   private current(): Array<{ factory: TaskViewFactory; view: TaskView }> {

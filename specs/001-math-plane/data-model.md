@@ -123,3 +123,4 @@ Cross-field rules (`validate.ts`): `start <= hardest`; at least one side on; `vo
 - `owned: string[]` item ids.
 - `chosen: { planeColor, tail, smoke, bomb, hat }`.
 - Items (`core/rewards/items.ts`): id, category, price, look data. Prices and list are builder choices (PRD section 15); every category has a free default item.
+- Free defaults (`STARTER`): `planeColor.red`, `tail.star`, `smoke.none`, `bomb.confetti`, `hat.cap` (the prototype's plane). Other items cost 10 to 60 stars. A stored chosen id that is unknown or not owned shows the free default of its category, so older data still loads.

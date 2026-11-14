@@ -13,7 +13,7 @@ World size 1600 by 1000, scaled to fit, as math-soccer. Sky y 0 to 380 with clou
 | Parent gate | React | Gear held 2 s | Menu "Einstellungen", "Fortschritt". No key opens it. |
 | Settings | React | Parent menu | Groups Stufen, Themen, Gebäude, Runde, Ton, Bedienung, Hangar, Daten (FR-051); version and build date; "Kopie wiederherstellen" when a readable kept copy exists. |
 | Progress | React | Parent menu | Per mode: current level; table per level and task kind (alone, with help, "gemeistert"); table per side for view tasks; personal bests; "Fortschritt zurücksetzen", "Alles zurücksetzen" with confirmation. |
-| Hangar | React | "Hangar" or K on the start screen; the Hangar icon during a round (pauses it) | Preview plane on a sky strip; groups Farbe, Heckbild, Rauch, Bomben, Mütze; locked items show "noch N Sterne"; Escape or "Zurück". `data-testid="hangar"`, items `data-testid="item-<id>"` with `data-owned`, `data-chosen`. |
+| Hangar | React | "Hangar" or K on the start screen; the Hangar icon during a round (pauses it) | Preview plane on a sky strip; groups Farbe, Heckbild, Rauch, Bomben, Mütze; locked items show "noch N Sterne"; an item up to 20 stars is bought with one tap, a dearer one after "Für N Sterne kaufen?" and "Ja"; Escape or "Zurück". `data-testid="hangar"` with `data-stars`, items `data-testid="item-<id>"` with `data-owned`, `data-chosen`, `data-locked`; the preview `data-testid="hangar-preview"` with `data-look` (the chosen ids); the question `data-testid="buy-question"`. The round's canvas carries the look in use: `data-plane-color`, `data-plane-tail`, `data-plane-hat`, `data-plane-smoke`, `data-bomb-style`. |
 | Transfer dialog | React | Link with `#save=` | As math-soccer. |
 
 ## Keys during a round

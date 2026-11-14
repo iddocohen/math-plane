@@ -80,15 +80,17 @@ export const HANGAR_CATEGORIES = ['planeColor', 'tail', 'smoke', 'bomb', 'hat'] 
 export type HangarCategory = (typeof HANGAR_CATEGORIES)[number];
 
 /**
- * The free default item of each category. core/rewards/items.ts (T020) lists the items and must contain these ids;
- * they are defined here so a new Hangar does not depend on the item list.
+ * The free default item of each category: the prototype's red plane with the white star on the tail and the brown cap,
+ * no smoke, confetti bombs. core/rewards/items.ts lists these ids with price 0; they are defined here so a new Hangar
+ * does not depend on the item list. A stored chosen id that is unknown or not owned shows as this default
+ * (core/rewards/hangar.ts `chosenId`), so older stored data keeps loading.
  */
 export const STARTER: Record<HangarCategory, string> = {
   planeColor: 'planeColor.red',
-  tail: 'tail.none',
-  smoke: 'smoke.white',
-  bomb: 'bomb.classic',
-  hat: 'hat.none',
+  tail: 'tail.star',
+  smoke: 'smoke.none',
+  bomb: 'bomb.confetti',
+  hat: 'hat.cap',
 };
 
 /** `mathplane.hangar.v1`: stars, bought items and the chosen look. Free items are owned without being listed. */

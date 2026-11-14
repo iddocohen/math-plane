@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { de } from './de';
 import { CHILD_SECTIONS, LONG_SECTIONS, MAX_WORDS, forbiddenWords, hasForbiddenWord, resetMessage, wordCount } from './index';
+import { ITEMS } from '../core/rewards/items';
 
 /**
  * Sample arguments for texts that take numbers or words. A function is called with each; a result that contains
@@ -140,6 +141,12 @@ describe('texts from contracts/screens.md and spec.md', () => {
     expect(de.progressPage.columns.mastered).toBe('gemeistert');
     expect(Object.values(de.hangar.groups)).toEqual(['Farbe', 'Heckbild', 'Rauch', 'Bomben', 'Mütze']);
     expect(de.hangar.stillNeeded(5)).toBe('noch 5 Sterne');
+    expect(de.hangar.buyQuestion(30)).toBe('Für 30 Sterne kaufen?');
+  });
+
+  it('names every Hangar item, and no other', () => {
+    expect(Object.keys(de.hangar.items).sort()).toEqual(ITEMS.map((i) => i.id).sort());
+    expect([de.hangar.items['bomb.water'], de.hangar.items['bomb.confetti'], de.hangar.items['hat.bobble']]).toEqual(['Wasserbombe', 'Konfetti', 'Mütze mit Bommel']);
   });
 });
 

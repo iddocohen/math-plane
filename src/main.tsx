@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app/App';
+import { ErrorBoundary } from './app/ErrorBoundary';
 import './app/styles.css';
 import { BUILD_VERSION } from './app/buildInfo';
 import { swUpdate } from './app/swUpdate';
@@ -25,6 +26,8 @@ void requestPersistentStorage(navigator.storage);
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

@@ -129,33 +129,43 @@ export const contentSchema = z.object({
  * RoundController.ts). The task is not stored: it is made again from `content` and the seed of task `taskIndex`.
  * `ruleState` is the mode rules' own state of the task (typed crates, painted squares, slots); the rules check it when
  * the round is restored. Version 1 of the game never stored the earlier placeholder shape, so no migration is needed.
+ * A round whose counts cannot occur in play (more bombs left or hits than bombs, more tasks done than tasks, more
+ * tasks solved alone than done) is rejected.
  */
-export const roundSchema = z.object({
-  version: z.literal(1),
-  mode: modeSchema,
-  seed: z.number().int(),
-  /** The level of the mode when the round was saved. */
-  level: levelSchema,
-  elapsedMs: z.number().min(0),
-  bombsTotal: z.number().int().min(0),
-  bombsLeft: z.number().int().min(0),
-  hits: z.number().int().min(0),
-  tasksTotal: z.number().int().min(0),
-  tasksDone: z.number().int().min(0),
-  solvedAlone: z.number().int().min(0),
-  /** Stars earned in this round so far. */
-  stars: z.number().int().min(0),
-  /** How many tasks the round has started, counting the current one. */
-  taskIndex: z.number().int().min(0),
-  previousKind: z.enum(TASK_KINDS).nullable(),
-  content: contentSchema,
-  /** True when the current task was solved and the next one has not started. */
-  solved: z.boolean(),
-  misses: z.number().int().min(0),
-  helpStep: z.number().int().min(0).max(3),
-  /** Play time of the round when the current task started. */
-  taskStartMs: z.number().min(0),
-  marked: z.array(z.string()),
-  ruleState: z.unknown(),
-});
+export const roundSchema = z
+  .object({
+    version: z.literal(1),
+    mode: modeSchema,
+    seed: z.number().int(),
+    /** The level of the mode when the round was saved. */
+    level: levelSchema,
+    elapsedMs: z.number().min(0),
+    bombsTotal: z.number().int().min(0),
+    bombsLeft: z.number().int().min(0),
+    hits: z.number().int().min(0),
+    tasksTotal: z.number().int().min(0),
+    tasksDone: z.number().int().min(0),
+    solvedAlone: z.number().int().min(0),
+    /** Stars earned in this round so far. */
+    stars: z.number().int().min(0),
+    /** How many tasks the round has started, counting the current one. */
+    taskIndex: z.number().int().min(0),
+    previousKind: z.enum(TASK_KINDS).nullable(),
+    content: contentSchema,
+    /** True when the current task was solved and the next one has not started. */
+    solved: z.boolean(),
+    misses: z.number().int().min(0),
+    helpStep: z.number().int().min(0).max(3),
+    /** Play time of the round when the current task started. */
+    taskStartMs: z.number().min(0),
+    marked: z.array(z.string()),
+    ruleState: z.unknown(),
+  })
+  .superRefine((r, ctx) => {
+    const broken = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
+    if (r.bombsLeft > r.bombsTotal) broken('bombsLeft', 'more bombs left than bombs');
+    if (r.hits > r.bombsTotal) broken('hits', 'more hits than bombs');
+    if (r.tasksDone > r.tasksTotal) broken('tasksDone', 'more tasks done than tasks');
+    if (r.solvedAlone > r.tasksDone) broken('solvedAlone', 'more tasks solved alone than done');
+  });
 export type StoredRound = z.infer<typeof roundSchema>;

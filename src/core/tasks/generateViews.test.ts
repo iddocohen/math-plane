@@ -161,3 +161,23 @@ describe('"Ansicht finden" on level 5', () => {
     expect(make(5, 42)).toEqual(make(5, 42));
   });
 });
+
+describe('"Ansicht finden" never runs out of wrong cards (review: RangeError from pickWrong)', () => {
+  // Mixed buildings on a 3×3 plan with stacks 0 to 2 sometimes give fewer than 2 usable wrong cards; the generator then
+  // tries another building instead of throwing during play.
+  const limits = { size: 3 as const, minStack: 0, maxStack: 2 };
+  for (const [name, sides] of [
+    ['all sides', [...SIDES]],
+    ['"oben" only', ['oben']],
+  ] as const) {
+    it(`gives exactly one right card over 500 seeds with stacks up to 2, mixed pieces on, ${name}`, () => {
+      const settings = defaultSettings();
+      for (const seed of SEEDS) {
+        const content = { kind: 'ansichtFinden' as const, level: 5 as Level, plan: limits, sides: [...sides] as Side[], mixed: true };
+        const task = generateTask({ content, settings, rng: createRng(seed), id: `t-${seed}`, seed }) as AnsichtFindenTask;
+        expect(task.choices).toHaveLength(3);
+        expect(task.rightIndexes).toHaveLength(1);
+      }
+    });
+  }
+});

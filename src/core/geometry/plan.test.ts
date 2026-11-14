@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createRng, type Rng } from '../rng';
 import {
   changeOne,
@@ -13,6 +13,15 @@ import {
   type Plan,
   type PlanLimits,
 } from './plan';
+
+/** An rng that always gives the same numbers, so every random try fails and the built-in list is used. */
+const stuckRng = (pickIndex = 0): Rng => ({
+  next: () => 0,
+  int: (min) => min,
+  pick: (items) => items[Math.min(pickIndex, items.length - 1)]!,
+  shuffled: (items) => [...items],
+  normal: (mean) => mean,
+});
 
 const P: Plan = [
   [3, 2, 1],
@@ -159,6 +168,18 @@ describe('generateCubePlan (research R4, critique E7)', () => {
       }
     });
   }
+
+  it('warns when it uses a built-in plan', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const limits: PlanLimits = { size: 3, minStack: 0, maxStack: 3 };
+      const p = generateCubePlan(stuckRng(), limits);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('generateCubePlan: using a built-in plan'));
+      expect(meetsRules(p, limits)).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
 
   it('gives the same plan for the same seed', () => {
     const limits = LIMITS[4]!;

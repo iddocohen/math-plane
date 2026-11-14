@@ -97,3 +97,22 @@ test('a refresh during a "Bauen und Malen" round continues it at the same task',
   await solveBauen(page, round);
   await expect(page.getByTestId('task-counter')).toHaveText('Aufgabe 3 von 3');
 });
+
+test('a refresh without a fixed seed continues "Bauen und Malen" with the same task', async ({ page }) => {
+  // Without `?seed=` the page makes a new random seed on every load; the stored round must keep its own (review finding).
+  await seedStorage(page, { [SETTINGS_KEY]: shortRounds() }, { once: true });
+  await page.goto('/?speed=4&test=1');
+  let round = await startRound(page, '2');
+  const answer = await round.getAttribute('data-answer');
+  expect(answer).toBeTruthy();
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key) !== null, ROUND_KEY)).toBe(true);
+
+  for (let i = 0; i < 2; i++) {
+    await page.reload();
+    round = page.getByTestId('round');
+    await expect(round).toHaveAttribute('data-mode', 'bauenMalen');
+    await expect(page.getByTestId('task-counter')).toHaveText('Aufgabe 1 von 3');
+    await expect(round).toHaveAttribute('data-answer', answer!);
+  }
+  await expect(page.locator('canvas[data-scene="round"]')).toHaveCount(1);
+});

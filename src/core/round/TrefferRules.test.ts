@@ -27,6 +27,12 @@ function round(opts: { settings?: Settings; seed?: number } = {}) {
   return { controller, events, advance: (ms: number) => (t += ms) };
 }
 
+/** The task and task state, typed as the rule functions take them; `state()` hands them out read-only. */
+function current(c: RoundController<TrefferTask, TrefferState>): { task: TrefferTask; taskState: TrefferState } {
+  const { task, taskState } = c.state();
+  return { task: task as TrefferTask, taskState: taskState as TrefferState };
+}
+
 function slotOf(c: RoundController<TrefferTask, TrefferState>, which: 'right' | 'wrong'): number {
   const { task, taskState } = c.state();
   return taskState.slots.findIndex((choice) => task.rightIndexes.includes(choice) === (which === 'right'));
@@ -36,7 +42,7 @@ describe('trefferRules', () => {
   it('stands every choice in one slot and answers with the slot of the target', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const { controller } = round({ seed });
-      const { task, taskState } = controller.state();
+      const { task, taskState } = current(controller);
       expect([...taskState.slots].sort()).toEqual([0, 1, 2, 3]);
       const answer = Number(trefferRules.answer!(task, taskState));
       expect(task.choices[trefferRules.choiceAt(task, taskState, answer)!]).toBe((task as KoerperTask).target);
@@ -60,7 +66,7 @@ describe('trefferRules', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const { controller, events } = round({ seed });
       const wrong = slotOf(controller, 'wrong');
-      const { task, taskState } = controller.state();
+      const { task, taskState } = current(controller);
       const choice = taskState.slots[wrong]!;
       controller.tapChoice(wrong);
       controller.landBomb();
@@ -132,7 +138,7 @@ describe('trefferRules', () => {
 
   it('a stored state is kept when it fits the task and dropped when it does not', () => {
     const { controller } = round();
-    const { task } = controller.state();
+    const { task } = current(controller);
     expect(trefferRules.restoreState(task, { slots: [3, 1, 0, 2], lastHit: 1 })).toEqual({ slots: [3, 1, 0, 2], lastHit: 1 });
     expect(trefferRules.restoreState(task, { slots: [3, 1, 0, 2], lastHit: 9 })).toEqual({ slots: [3, 1, 0, 2], lastHit: null });
     expect(trefferRules.restoreState(task, { slots: [0, 0, 1, 2] })).toBeNull();
@@ -158,7 +164,7 @@ describe('trefferRules with plan and view tasks (US2)', () => {
     it(`level ${level}: 3 choices in 3 slots, one right slot, and a miss remembers the choice hit for the "Getroffen" card`, () => {
       for (let seed = 1; seed <= 60; seed++) {
         const { controller } = round({ seed, settings: settings((s) => (s.levels.treffer = { start: level, hardest: level })) });
-        const { task, taskState } = controller.state();
+        const { task, taskState } = current(controller);
         expect(task.kind).toBe(level === 3 ? 'bauplanFinden' : 'ansichtFinden');
         expect([...taskState.slots].sort()).toEqual([0, 1, 2]);
         expect(trefferRules.answer!(task, taskState).split(',')).toHaveLength(1);

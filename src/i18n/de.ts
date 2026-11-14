@@ -66,6 +66,10 @@ export const de = {
     home: 'Zum Start',
     /** The question after the home button (FR-038). */
     quitAsk: 'Runde beenden?',
+    /** The game could not load or a screen could not be shown (ErrorBoundary.tsx). */
+    stuck: 'Das Spiel klemmt gerade.',
+    /** The button that loads the page again after `stuck`. */
+    reload: 'Neu laden',
     fullscreen: 'Vollbild',
     gear: 'Für Eltern',
     hangar: 'Hangar',

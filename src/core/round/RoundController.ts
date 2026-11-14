@@ -23,7 +23,8 @@
  * and the round keeps its number of bombs or tasks.
  *
  * Storage: `toStored()` is the round to save after each event (null once it ended); a controller made with a stored
- * round that still fits the settings continues it (`restored`).
+ * round that still fits the settings continues it (`restored`) with the stored seed, so it rebuilds the same task and
+ * later saves keep that seed. The seed given to the constructor is then not used.
  */
 import { levelRaised, recordAttempt } from '../progress/adaptive';
 import { outcomeOf } from '../progress/outcome';
@@ -53,6 +54,18 @@ export interface BombResult {
   hit: boolean;
 }
 
+/**
+ * `T` with every nested property read-only. `state()` hands out the controller's own task and task state without a
+ * copy, because views read them every frame; this type keeps views from changing them.
+ */
+export type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends ReadonlyArray<infer U>
+    ? ReadonlyArray<DeepReadonly<U>>
+    : T extends object
+      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+      : T;
+
 export interface RoundState<T extends TaskBase = TaskBase, S = unknown> {
   mode: Mode;
   phase: Phase;
@@ -69,16 +82,16 @@ export interface RoundState<T extends TaskBase = TaskBase, S = unknown> {
   stars: number;
   /** The mode's current level. */
   level: Level;
-  task: T;
-  taskState: S;
+  task: DeepReadonly<T>;
+  taskState: DeepReadonly<S>;
   /** How many tasks the round has started, counting the current one. */
   taskIndex: number;
   misses: number;
   helpStep: number;
   /** Marks after a wrong "Fertig" (FR-009), ids from the rules. */
-  marked: string[];
+  marked: readonly string[];
   /** The bomb in the air during `pass`, else the last bomb that landed on this task. */
-  lastBomb: BombResult | null;
+  lastBomb: Readonly<BombResult> | null;
   elapsedMs: number;
 }
 
@@ -136,7 +149,8 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
   /** True when the controller continues a stored round. */
   readonly restored: boolean;
   private readonly rules: ModeRules<T, S>;
-  private readonly seed: number;
+  /** The round seed; a restored round takes the stored one, so it rebuilds the same tasks. */
+  private seed: number;
   private readonly now: () => number;
   private settings: Settings;
   private progress: Progress;
@@ -183,6 +197,7 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
 
   // ---- reading -------------------------------------------------------------------------------------------------
 
+  /** A snapshot of the round. The task and the task state are the controller's own, typed read-only (`DeepReadonly`). */
   state(): RoundState<T, S> {
     return {
       mode: this.mode,
@@ -197,13 +212,13 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
       solvedAlone: this.solvedAlone,
       stars: this.stars,
       level: this.level(),
-      task: this.task,
-      taskState: this.taskState,
+      task: this.task as DeepReadonly<T>,
+      taskState: this.taskState as DeepReadonly<S>,
       taskIndex: this.taskIndex,
       misses: this.misses,
       helpStep: this.helpStep,
       marked: [...this.marked],
-      lastBomb: this.lastBomb,
+      lastBomb: this.lastBomb === null ? null : { ...this.lastBomb },
       elapsedMs: this.elapsed(),
     };
   }
@@ -448,6 +463,8 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
     if (s.mode !== this.mode || s.taskIndex < 1) return false;
     if (!this.settings.kinds[s.content.kind] || !levelRange(this.mode, this.settings).includes(s.content.level)) return false;
     if (s.bombsLeft > s.bombsTotal || s.tasksDone > s.tasksTotal) return false;
+    const freshSeed = this.seed;
+    this.seed = s.seed;
     this.taskIndex = s.taskIndex;
     let task: T;
     let state: S;
@@ -455,7 +472,9 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
       const rng = this.rng(STREAM.task);
       task = this.makeTask(s.content, rng);
       state = this.rules.restoreState(task, s.ruleState) ?? this.rules.createState(task, rng);
-    } catch {
+    } catch (err) {
+      console.warn('RoundController: the stored round could not be continued, a new round starts', err);
+      this.seed = freshSeed;
       this.taskIndex = 0;
       return false;
     }

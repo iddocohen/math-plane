@@ -1,11 +1,11 @@
 // Copied from math-soccer src/core/transfer/qr.ts.
 /**
- * The QR code of a transfer link (FR-041, as math-tank). Drawn in the browser with the bundled library uqr 0.1.3
+ * The QR code of a transfer link (FR-053, as math-tank). Drawn in the browser with the bundled library uqr 0.1.3
  * (MIT license, https://github.com/unjs/uqr), so it works offline and sends nothing anywhere.
  */
 import { encode } from 'uqr';
 
-/** Error correction level M recovers about 15 % of damaged modules (FR-118). */
+/** Error correction level M recovers about 15 % of damaged modules (FR-053, as math-soccer). */
 export const QR_ECC = 'M';
 /** The light border scanners need around the code, in modules (the QR standard asks for 4). */
 export const QR_QUIET_ZONE = 4;

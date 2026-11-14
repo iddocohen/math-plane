@@ -107,23 +107,29 @@ export function isReadable(p: Plan): boolean {
   for (let r = 0; r + 1 < rows; r++) {
     for (let c = 0; c + 1 < cols; c++) if (p[r]![c]! < p[r + 1]![c + 1]!) return false;
   }
-  const nearer: Array<{ depth: number; outline: Point[] }> = [];
   for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) if (p[r]![c]! > 0) nearer.push({ depth: r + c, outline: boxOutline(c, r, p[r]![c]!) });
-  }
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const h = p[r]![c]!;
-      if (h === 0) continue;
-      const blockers = nearer.filter((b) => b.depth > r + c);
-      const visible = TOP_SAMPLES.filter(([dc, dr]) => {
-        const pt = isoPoint(c + dc, r + dr, h, 1);
-        return !blockers.some((b) => covers(b.outline, pt));
-      }).length;
-      if (visible < VISIBLE_MIN) return false;
-    }
+    for (let c = 0; c < cols; c++) if (p[r]![c]! > 0 && !topVisible(p, r, c)) return false;
   }
   return true;
+}
+
+/**
+ * True when the top of the stack on (`row`, `col`) keeps at least 3 of 5 sampled points out of the drawn box of every
+ * stack nearer to the viewer (the test of `isReadable`). For an empty square the top is the ground square.
+ */
+export function topVisible(p: Plan, row: number, col: number): boolean {
+  const h = p[row]![col]!;
+  const blockers: Point[][] = [];
+  p.forEach((line, r) =>
+    line.forEach((hb, c) => {
+      if (hb > 0 && r + c > row + col) blockers.push(boxOutline(c, r, hb));
+    }),
+  );
+  const visible = TOP_SAMPLES.filter(([dc, dr]) => {
+    const pt = isoPoint(col + dc, row + dr, h, 1);
+    return !blockers.some((b) => covers(b, pt));
+  }).length;
+  return visible >= VISIBLE_MIN;
 }
 
 /** Squares with a stack that a plan of `size` must have at least (research R4). */
@@ -177,6 +183,7 @@ export function generateCubePlan(rng: Rng, limits: PlanLimits): Plan {
     if (meetsRules(p, limits)) return p;
   }
   const fits = FALLBACK_PLANS[size].filter((p) => meetsRules(p, limits));
+  console.warn(`generateCubePlan: using a built-in plan for ${JSON.stringify(limits)}`);
   if (fits.length === 0) throw new RangeError(`generateCubePlan: no plan fits ${JSON.stringify(limits)}`);
   return copy(rng.pick(fits));
 }
@@ -204,6 +211,10 @@ export function isUniform(p: Plan): boolean {
  * A variant is kept only when it differs from `p` and from every variant kept before it. Variants need not be readable
  * (research R4): a turned building often hides a low stack behind a tall one, and it still looks different from the
  * right building, which is readable.
+ *
+ * A stack change is kept only when the changed stack's top shows in both drawings (`topVisible`). Otherwise the
+ * drawing can look the same as the right building: on a 3×3 plan a cube added on a square hidden behind nearer stacks
+ * changes nothing that the child can see.
  */
 export function planCandidates(p: Plan, limits: PlanLimits): PlanVariant[] {
   const lowest = limits.size === 2 ? Math.max(1, limits.minStack) : limits.minStack;
@@ -222,10 +233,11 @@ export function planCandidates(p: Plan, limits: PlanLimits): PlanVariant[] {
       add(turned, 'structural');
     }
   }
+  const visibleChange = (plan: Plan | null, r: number, c: number): Plan | null => (plan !== null && topVisible(p, r, c) && topVisible(plan, r, c) ? plan : null);
   p.forEach((row, r) =>
     row.forEach((_, c) => {
-      add(changeOne(p, r, c, 1), 'stack');
-      add(changeOne(p, r, c, -1), 'stack');
+      add(visibleChange(changeOne(p, r, c, 1), r, c), 'stack');
+      add(visibleChange(changeOne(p, r, c, -1), r, c), 'stack');
     }),
   );
   return out;

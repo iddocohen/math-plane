@@ -11,6 +11,7 @@
  *   building and 2 variants stand on the field.
  * - "Ansicht finden" (FR-019, research R7): one building, a cube building or, where the content allows, a building
  *   with mixed pieces half of the time; the side asked from the content's sides; the right view card and 2 wrong ones.
+ *   A building with fewer than 2 distinct wrong cards is replaced by another one.
  * - "Bauen" (FR-021): a readable cube building within the content's plan limits (bauen.ts).
  * - "Malen" (FR-022, FR-024): a readable cube building and a side whose view is worth painting (malen.ts). Side views
  *   are as high as the parent's highest stack.
@@ -93,6 +94,7 @@ function bauplan(rng: Rng, limits: PlanLimits): Plan {
     if (hasVariants(p, limits)) return p;
   }
   const fits = FALLBACK_PLANS[limits.size].filter((p) => meetsRules(p, limits) && hasVariants(p, limits));
+  console.warn(`bauplanFinden: using a built-in plan for ${JSON.stringify(limits)}`);
   if (fits.length === 0) throw new RangeError(`bauplanFinden: no plan fits ${JSON.stringify(limits)}`);
   return rng.pick(fits).map((row) => [...row]);
 }
@@ -153,17 +155,59 @@ function pickWrong(rng: Rng, groups: AnyView[][]): AnyView[] {
   return picked;
 }
 
+/** How many buildings "Ansicht finden" tries before it falls back to a cube building. */
+export const ANSICHT_TRIES = 20;
+
+/** A building for "Ansicht finden" with its views and wrong-card groups. */
+interface AnsichtBuilding {
+  building: Plan | MixedBuilding;
+  views: Record<Side, AnyView>;
+  groups: AnyView[][];
+}
+
+function ansichtBuilding(building: Plan | MixedBuilding, side: Side, gridHeight: number): AnsichtBuilding {
+  const views = viewsOf(building, gridHeight);
+  return { building, views, groups: wrongGroups(building, views, side) };
+}
+
+/** True when the groups hold at least the 2 distinct wrong cards a task needs (the groups hold no duplicates). */
+const enoughWrong = (b: AnsichtBuilding): boolean => b.groups.reduce((n, g) => n + g.length, 0) >= CARD_COUNT - 1;
+
+/**
+ * A building whose view from `side` has at least 2 distinct wrong cards. Some mixed buildings have too few (a 3×3
+ * plan with stacks up to 2 seen from "oben", for example), so it draws another building, up to `ANSICHT_TRIES` times.
+ * Then it tries cube buildings, and last the built-in plans. It throws only when no built-in plan fits the limits
+ * and gives enough cards; generateViews.test.ts checks the limits of the levels over many seeds.
+ */
+function ansichtFor(rng: Rng, content: TaskRequest['content'], sides: readonly Side[], side: Side, limits: PlanLimits): AnsichtBuilding {
+  const draw = (): Plan | MixedBuilding =>
+    content.mixed && rng.next() < MIXED_SHARE
+      ? generateMixed(rng, { size: limits.size, maxStack: Math.max(2, limits.maxStack), sides, mixed: true })
+      : generateCubePlan(rng, limits);
+  for (let i = 0; i < ANSICHT_TRIES; i++) {
+    const b = ansichtBuilding(draw(), side, limits.maxStack);
+    if (enoughWrong(b)) return b;
+  }
+  for (let i = 0; i < ANSICHT_TRIES; i++) {
+    const b = ansichtBuilding(generateCubePlan(rng, limits), side, limits.maxStack);
+    if (enoughWrong(b)) return b;
+  }
+  const fits = FALLBACK_PLANS[limits.size]
+    .filter((p) => meetsRules(p, limits))
+    .map((p) => ansichtBuilding(p.map((row) => [...row]), side, limits.maxStack))
+    .filter(enoughWrong);
+  console.warn(`ansichtFinden: using a built-in plan for ${JSON.stringify(limits)} from ${side}`);
+  if (fits.length === 0) throw new RangeError(`ansichtFinden: no building fits ${JSON.stringify(limits)} from ${side}`);
+  return rng.pick(fits);
+}
+
 export function generateAnsichtFinden(rng: Rng, ident: Ident, content: TaskRequest['content']): AnsichtFindenTask {
   const sides = content.sides && content.sides.length > 0 ? content.sides : (['vorn', 'oben'] as Side[]);
   const side = rng.pick(sides);
   const limits = content.plan ?? VIEW_PLAN;
-  const building: Plan | MixedBuilding =
-    content.mixed && rng.next() < MIXED_SHARE
-      ? generateMixed(rng, { size: limits.size, maxStack: Math.max(2, limits.maxStack), sides, mixed: true })
-      : generateCubePlan(rng, limits);
-  const views = viewsOf(building, limits.maxStack);
+  const { building, views, groups } = ansichtFor(rng, content, sides, side, limits);
   const asked = views[side];
-  const cards = rng.shuffled([asked, ...pickWrong(rng, wrongGroups(building, views, side))]);
+  const cards = rng.shuffled([asked, ...pickWrong(rng, groups)]);
   const choices: ViewCard[] = cards.map((view) => ({ view, shows: SIDES.filter((s) => views[s].signature === view.signature) }));
   const rightIndexes = choices.flatMap((c, i) => (c.view.signature === asked.signature ? [i] : []));
   return { ...ident, kind: 'ansichtFinden', mode: 'treffer', side, building, color: rng.pick(PIECE_COLORS), choices, rightIndexes };

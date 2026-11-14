@@ -1,17 +1,17 @@
 // Adapted from math-soccer src/app/swUpdate.ts (which copied it from math-tank): the resume intent is a mode, the
 // session keys are Mathe-Flieger's, and the cup's bracket screen is left out.
 /**
- * Offline play and updates (FR-051, FR-051a, research R12). main.tsx installs the service worker with `registerSW`
+ * Offline play and updates (FR-057, as math-soccer). main.tsx installs the service worker with `registerSW`
  * from `virtual:pwa-register` (vite-plugin-pwa, `registerType: 'prompt'`); the worker precaches the whole build, so
  * the game works offline after the first load. When a new version is waiting, it is applied (the page reloads with
  * it) only while the start screen shows, never during a round. The app reports what shows with `report`, and one rule,
  * `mayApplyNow`, decides over that and the child's first input. Without `install` (unit tests, the dev server)
  * nothing happens.
  *
- * Fast updates (Phase 24, amendment 12): the app asks the server for a new service worker on load, each time the start
- * screen shows (FR-102), every UPDATE_CHECK_MS while it is open, and when the page comes back to the front.
+ * Fast updates (as math-soccer): the app asks the server for a new service worker on load, each time the start
+ * screen shows, every UPDATE_CHECK_MS while it is open, and when the page comes back to the front.
  *
- * Amendment 12 (FR-103, FR-104): a version that waits is also applied
+ * As math-soccer, a version that waits is also applied
  * - at page load, before the child presses a key or touches the screen, on any screen. A reload during a round restores
  *   the round on the round screen, not on the start screen, so before this rule a reload never applied a waiting
  *   version while a round was stored. The round is stored, so the new version restores it.
@@ -30,7 +30,7 @@ import { BUILD_VERSION } from './buildInfo';
 export const UPDATE_CHECK_MS = 5 * 60 * 1000;
 /** sessionStorage key: the version the page last reloaded from automatically. */
 export const AUTO_RELOAD_KEY = 'mathPlane.autoReloadFrom';
-/** sessionStorage key: the round kind "Nochmal" asked for before the page reloaded with a new version (FR-103). */
+/** sessionStorage key: the round kind "Nochmal" asked for before the page reloaded with a new version (as math-soccer). */
 export const START_AFTER_UPDATE_KEY = 'mathPlane.startAfterUpdate';
 
 /** Whether the page may reload automatically to apply a waiting version (one reload per version and browser tab). */
@@ -50,7 +50,7 @@ export interface SwUpdateEnv {
   /**
    * Reloads the page once the new service worker controls it. vite-plugin-pwa reloads only when a worker controlled the
    * page when it loaded (workbox-window's `isUpdate`); a page from a first visit or after the browser data was cleared
-   * would keep running the old version (amendment 12, found by tests/e2e/update.spec.ts).
+   * would keep running the old version (as math-soccer, found by its tests/e2e/update.spec.ts).
    */
   reloadOnControllerChange?(): void;
 }
@@ -89,9 +89,9 @@ export interface UpdateContext extends AppView {
 }
 
 /**
- * Whether a waiting version may reload the page now (FR-051a, FR-104, review R2):
+ * Whether a waiting version may reload the page now (FR-057, as math-soccer):
  * - before the child's first key or touch since the page loaded, on any screen: a stored round comes back after the
- *   reload, so nothing is lost (FR-104);
+ *   reload, so nothing is lost;
  * - after it only between rounds, on the start screen, and never while a parent screen or the transfer dialog is
  *   open, so no unsaved setting or pending take-over is lost.
  */
@@ -107,7 +107,7 @@ function betweenRounds(view: AppView): boolean {
 /** The view before the app's first report: no screen. */
 const NOTHING_SHOWN: AppView = { screen: '', parentOpen: false, transferOpen: false };
 
-/** What the page that loads the new version does first: start the round "Nochmal" asked for (FR-103). */
+/** What the page that loads the new version does first: start the round "Nochmal" asked for (as math-soccer). */
 export interface ResumeIntent {
   start: Mode;
 }
@@ -138,7 +138,7 @@ export interface SwUpdate {
   /** Calls `fn` whenever `waiting()` changes; returns the function that stops it. */
   subscribe(fn: () => void): () => void;
   /**
-   * Applies the waiting version now and leaves `intent` for the new page (FR-103, "Nochmal"). Returns false when
+   * Applies the waiting version now and leaves `intent` for the new page ("Nochmal", as math-soccer). Returns false when
    * nothing waits or the loop guard holds; when the update fails (offline), `onFail` runs instead.
    */
   applyNow(intent: ResumeIntent, onFail: () => void): boolean;
@@ -151,7 +151,7 @@ export function createSwUpdate(env: SwUpdateEnv = browserEnv()): SwUpdate {
   let waiting = false;
   // What the app reported last; null before its first report.
   let view: AppView | null = null;
-  // False from page load until the child's first key or touch (FR-104).
+  // False from page load until the child's first key or touch (as math-soccer).
   let inputReceived = false;
   let registered: ServiceWorkerRegistration | null = null;
   /** The version the page last reloaded from automatically; read from the session once, then kept here. */
@@ -250,7 +250,7 @@ export function createSwUpdate(env: SwUpdateEnv = browserEnv()): SwUpdate {
       // The rule's answer for this view changes only with `betweenRounds` (or the first input, which applies nothing
       // by itself): a report that keeps it does nothing.
       if (was === now) return;
-      // FR-102: every time the start screen shows with nothing over it, ask for a new version.
+      // As math-soccer: every time the start screen shows with nothing over it, ask for a new version.
       if (now && registered) checkForUpdate(registered);
       applyIfAllowed();
     },

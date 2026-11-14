@@ -47,6 +47,7 @@ function buildingFor(rng: Rng, side: Side, limits: PlanLimits, gridHeight: numbe
     if (worthPainting(cubeView(p, side, gridHeight))) return p;
   }
   const fits = FALLBACK_PLANS[limits.size].filter((p) => meetsRules(p, limits) && worthPainting(cubeView(p, side, gridHeight)));
+  console.warn(`malen: using a built-in plan for ${JSON.stringify(limits)} from ${side}`);
   return fits.length > 0 ? rng.pick(fits).map((row) => [...row]) : null;
 }
 

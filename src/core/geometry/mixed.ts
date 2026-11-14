@@ -344,7 +344,8 @@ function colored(rng: Rng, shapes: readonly Shape[]): Piece[] {
 
 /**
  * A building of a few pieces within `limits` (research R6): up to `MIXED_TRIES` times a random template, placed and
- * maybe mirrored, until one keeps every rule; then a building from `FALLBACK_MIXED`. With `mixed` true the building
+ * maybe mirrored, until one keeps every rule; then a building from `FALLBACK_MIXED` that keeps every rule for the
+ * asked sides. With `mixed` true the building
  * has at least one cylinder or sphere.
  */
 export function generateMixed(rng: Rng, limits: MixedLimits): MixedBuilding {
@@ -359,6 +360,10 @@ export function generateMixed(rng: Rng, limits: MixedLimits): MixedBuilding {
     const b = make(shapes);
     if (mixedProblem(b, sides) === null) return b;
   }
+  // The built-in buildings that keep every rule for the asked sides; the color does not change the rules.
   const list = FALLBACK_MIXED[limits.mixed ? 'mixed' : 'boxes'][n];
-  return make(rng.pick(list));
+  const fits = list.filter((shapes) => mixedProblem({ pieces: shapes.map((p) => ({ ...p, color: '#000000' })), cols: n, rows: n, height: top }, sides) === null);
+  console.warn(`generateMixed: using a built-in building for ${JSON.stringify(limits)}`);
+  if (fits.length === 0) console.warn('generateMixed: no built-in building keeps every rule for these sides');
+  return make(rng.pick(fits.length > 0 ? fits : list));
 }

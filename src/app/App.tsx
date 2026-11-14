@@ -48,6 +48,7 @@ import { resetMessage, t } from '../i18n';
 import type { KeyAction, KeyScreen } from './keyboard';
 import { rulesFor } from './modeRules';
 import { PauseScreen } from './PauseScreen';
+import { ErrorBoundary, StuckScreen } from './ErrorBoundary';
 import { createPersistence, type DataKind, type Persistence } from './persistence';
 import { ParentGate } from './ParentGate';
 import { Hangar } from './Hangar';
@@ -170,6 +171,8 @@ export function App() {
   const [summary, setSummary] = useState<RoundSummary | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pauseKind, setPauseKind] = useState<'pause' | 'quit' | null>(null);
+  // True when the game chunk or the font did not load; the round screen then offers "Zum Start".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [overlay, setOverlay] = useState<'hangar' | null>(null);
   const [parent, setParent] = useState<ParentView>('closed');
   const [transfer, setTransfer] = useState<Transfer | null>(() => (saveCodeFromHash(window.location.hash) === null ? null : { kind: 'reading' }));
@@ -259,7 +262,7 @@ export function App() {
         setRound(restored);
         return;
       }
-      persistence.saveRound(null);
+      saves.report(persistence.saveRound(null));
     }
     const intent = swUpdate.takeResumeIntent();
     if (intent) startRound(intent.start);
@@ -268,13 +271,14 @@ export function App() {
 
   const goStart = useCallback(() => {
     round?.controller.quit();
-    persistence.saveRound(null);
+    saves.report(persistence.saveRound(null));
+    setLoadFailed(false);
     setRound(null);
     setSummary(null);
     setPauseKind(null);
     setMessage(null);
     setHangar(persistence.hangar());
-  }, [persistence, round]);
+  }, [persistence, round, saves]);
 
   // The game: loaded with the first round, then one scene per round; asleep while no round shows.
   useEffect(() => {
@@ -289,14 +293,24 @@ export function App() {
       return;
     }
     let cancelled = false;
-    void loadGame().then(({ createGame }) => {
-      if (cancelled || gameRef.current) return;
-      gameRef.current = createGame(host, round.controller, {
-        speed: parts.speed,
-        sound: (name) => sfx.play(name),
-        look: () => lookOf(persistence.hangar()),
+    loadGame()
+      .then(({ createGame }) => {
+        if (cancelled || gameRef.current) return;
+        gameRef.current = createGame(host, round.controller, {
+          speed: parts.speed,
+          sound: (name) => sfx.play(name),
+          look: () => lookOf(persistence.hangar()),
+        });
+      })
+      .catch((err: unknown) => {
+        // The game chunk or the font did not load (offline before the first visit, a broken download), or the game
+        // did not start. The round pauses; "Zum Start" leaves it, and a reload would continue it.
+        console.error('Mathe-Flieger: the game could not load', err);
+        if (!cancelled) {
+          round.controller.pause();
+          setLoadFailed(true);
+        }
       });
-    });
     return () => {
       cancelled = true;
     };
@@ -445,7 +459,7 @@ export function App() {
 
   const ended = round !== null && summary !== null && !summary.quit;
   const keyScreen: KeyScreen | null =
-    parent !== 'closed' || transfer !== null ? null : overlay === 'hangar' ? 'hangar' : round === null ? 'start' : ended ? 'roundEnd' : pauseKind !== null ? 'paused' : 'round';
+    parent !== 'closed' || transfer !== null || loadFailed ? null : overlay === 'hangar' ? 'hangar' : round === null ? 'start' : ended ? 'roundEnd' : pauseKind !== null ? 'paused' : 'round';
 
   const onAction = useCallback(
     (action: KeyAction) => {
@@ -503,23 +517,26 @@ export function App() {
           notices={notices}
         />
       ) : (
-        <RoundScreen
-          round={round}
-          parentRef={parentRef}
-          gear={gear}
-          message={message}
-          test={parts.test}
-          numberPad={numberPad}
-          showClock={settings.showClock}
-          speak={settings.sound.speech ? speaker.speak : null}
-          speechAvailable={speaker.available}
-          onHangar={settings.hangar ? openHangar : null}
-          onPause={() => pause('pause')}
-          onHome={() => pause('quit')}
-          onDone={onDone}
-          onSceneKey={onSceneKey}
-        />
+        <ErrorBoundary>
+          <RoundScreen
+            round={round}
+            parentRef={parentRef}
+            gear={gear}
+            message={message}
+            test={parts.test}
+            numberPad={numberPad}
+            showClock={settings.showClock}
+            speak={settings.sound.speech ? speaker.speak : null}
+            speechAvailable={speaker.available}
+            onHangar={settings.hangar ? openHangar : null}
+            onPause={() => pause('pause')}
+            onHome={() => pause('quit')}
+            onDone={onDone}
+            onSceneKey={onSceneKey}
+          />
+        </ErrorBoundary>
       )}
+      {round !== null && loadFailed && <StuckScreen button={t().round.home} onClick={goStart} />}
       {round !== null && pauseKind !== null && overlay === null && <PauseScreen kind={pauseKind} onResume={resume} onHome={goStart} />}
       {ended && overlay === null && (
         <RoundEnd

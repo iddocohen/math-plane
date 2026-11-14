@@ -167,6 +167,27 @@ describe('bauenMalenRules "Bauen"', () => {
     expect((again.state().taskState as BauenState).planInput[0]![0]).toBe(2);
     expect(again.state().task).toEqual(first.state().task);
   });
+
+  it('continues a stored round with the same building when the page gives a new seed, and keeps the stored seed', () => {
+    const s = settings((x) => (x.round.tasks = 3));
+    const first = new RoundController<TaskBase, unknown>({ rules: bauenMalenRules, settings: s, progress: emptyProgress(), seed: 9, now: () => 0 });
+    first.typeHeight(0, 0, 2);
+    const stored = first.toStored()!;
+    // A refresh without `?seed=` makes the controller with a new random seed.
+    const again = new RoundController<TaskBase, unknown>({ rules: bauenMalenRules, settings: s, progress: emptyProgress(), seed: 123456, now: () => 0, stored });
+    expect(again.restored).toBe(true);
+    expect(again.state().task).toEqual(first.state().task);
+    expect((again.state().taskState as BauenState).planInput[0]![0]).toBe(2);
+    expect(again.toStored()!.seed).toBe(9);
+    // The next task is the one the first round would have made.
+    typePlan(first, (first.state().task as BauenTask).target);
+    first.done();
+    first.next();
+    typePlan(again, (again.state().task as BauenTask).target);
+    again.done();
+    again.next();
+    expect(again.state().task).toEqual(first.state().task);
+  });
 });
 
 describe('bauenMalenRules "Malen" (T052, FR-009, FR-022)', () => {

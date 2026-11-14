@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { createRng } from '../rng';
+import { describe, expect, it, vi } from 'vitest';
+import { createRng, type Rng } from '../rng';
 import { SIDES } from '../types';
 import {
   FALLBACK_MIXED,
@@ -17,6 +17,15 @@ import {
 
 const ALL: MixedLimits = { size: 3, maxStack: 3, sides: SIDES, mixed: true };
 const SEEDS = Array.from({ length: 300 }, (_, i) => i + 1);
+
+/** An rng that always gives the same numbers, so every random try fails and the built-in list is used. */
+const stuckRng = (pickIndex = 0): Rng => ({
+  next: () => 0,
+  int: (min) => min,
+  pick: (items) => items[Math.min(pickIndex, items.length - 1)]!,
+  shuffled: (items) => [...items],
+  normal: (mean) => mean,
+});
 
 const piece = (p: Partial<Piece> & Pick<Piece, 'kind'>): Piece => ({ col: 0, row: 0, z: 0, w: 1, d: 1, h: 1, color: '#e0413a', ...p });
 const building = (pieces: Piece[], n = 3, height = 3): MixedBuilding => ({ pieces, cols: n, rows: n, height });
@@ -143,6 +152,17 @@ describe('generateMixed', () => {
       const boxes = generateMixed(createRng(seed), { size: 3, maxStack: 2, sides: ['oben'], mixed: false });
       expect(boxes.pieces.every((p) => p.kind === 'box')).toBe(true);
       expect(mixedProblem(boxes, ['oben'])).toBeNull();
+    }
+  });
+
+  it('warns when it uses a built-in building, and that building keeps every rule for the asked sides', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const b = generateMixed(stuckRng(1), { size: 3, maxStack: 2, sides: ['oben'], mixed: true });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('generateMixed: using a built-in building'));
+      expect(mixedProblem(b, ['oben'])).toBeNull();
+    } finally {
+      warn.mockRestore();
     }
   });
 });

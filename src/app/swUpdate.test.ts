@@ -12,7 +12,7 @@ import {
   type SwUpdateEnv,
 } from './swUpdate';
 
-/** The child's first key ends the load window in which a waiting version applies on any screen (FR-104). */
+/** The child's first key ends the load window in which a waiting version applies on any screen (as math-soccer). */
 const firstKey = () => document.dispatchEvent(new KeyboardEvent('keydown'));
 
 /** What the app reports on the start screen and during a round. */
@@ -36,7 +36,7 @@ function fakeRegister() {
   return { register, calls, newVersion: () => needRefresh?.() };
 }
 
-describe('service worker update (FR-051, FR-051a, research R12)', () => {
+describe('service worker update (FR-057, as math-soccer)', () => {
   it('registers the service worker once with the prompt callbacks', () => {
     const register = vi.fn<RegisterSW>(() => async () => {});
     const sw = createSwUpdate();
@@ -80,7 +80,7 @@ describe('service worker update (FR-051, FR-051a, research R12)', () => {
   });
 });
 
-describe('mayApplyNow (review R2, FR-104, refactor R3)', () => {
+describe('mayApplyNow (as math-soccer)', () => {
   const after = (view: { screen: string; parentOpen?: boolean; transferOpen?: boolean }) =>
     mayApplyNow({ parentOpen: false, transferOpen: false, ...view, inputReceived: true });
 
@@ -93,7 +93,7 @@ describe('mayApplyNow (review R2, FR-104, refactor R3)', () => {
     expect(after({ screen: 'start', transferOpen: true })).toBe(false);
   });
 
-  it('before the first input allows it on every screen, also with something open (FR-104)', () => {
+  it('before the first input allows it on every screen, also with something open', () => {
     for (const screen of ['start', 'round', 'hangar']) {
       for (const open of [false, true]) {
         expect(mayApplyNow({ screen, parentOpen: open, transferOpen: open, inputReceived: false })).toBe(true);
@@ -102,7 +102,7 @@ describe('mayApplyNow (review R2, FR-104, refactor R3)', () => {
   });
 });
 
-describe('resume intent (FR-103, refactor R3)', () => {
+describe('resume intent (as math-soccer)', () => {
   it('reads a stored round kind as the round to start, and anything else as no intent', () => {
     expect(parseResumeIntent('treffer')).toEqual({ start: 'treffer' });
     expect(parseResumeIntent('bauenMalen')).toEqual({ start: 'bauenMalen' });
@@ -162,9 +162,9 @@ function registration() {
   return { update: vi.fn(() => Promise.resolve()) };
 }
 
-// Phase 24 "Fast updates and cache cleanup": new builds reach devices quickly, without a reload loop.
-describe('update checks (Phase 24)', () => {
-  it('asks the server for a new version on load, every 5 minutes and when the page comes back to the front (FR-102)', () => {
+// Fast updates and cache cleanup, as math-soccer: new builds reach devices quickly, without a reload loop.
+describe('update checks (as math-soccer)', () => {
+  it('asks the server for a new version on load, every 5 minutes and when the page comes back to the front', () => {
     const f = fakeEnv();
     const reg = registration();
     const register: RegisterSW = (options) => {
@@ -197,7 +197,7 @@ describe('update checks (Phase 24)', () => {
   });
 });
 
-describe('mayAutoReload (loop guard, Phase 24)', () => {
+describe('mayAutoReload (loop guard, as math-soccer)', () => {
   it('allows one automatic reload per version in a browser tab', () => {
     expect(mayAutoReload('v1', null)).toBe(true);
     expect(mayAutoReload('v2', 'v1')).toBe(true);
@@ -205,7 +205,7 @@ describe('mayAutoReload (loop guard, Phase 24)', () => {
   });
 });
 
-describe('applying a waiting version (Phase 24, FR-051a)', () => {
+describe('applying a waiting version (FR-057, as math-soccer)', () => {
   function setupWith(f: ReturnType<typeof fakeEnv>) {
     const calls: Array<boolean | undefined> = [];
     let needRefresh: (() => void) | undefined;
@@ -256,7 +256,7 @@ describe('applying a waiting version (Phase 24, FR-051a)', () => {
   });
 });
 
-describe('amendment 12: new versions reach open pages', () => {
+describe('new versions reach open pages (as math-soccer)', () => {
   function setup(f: ReturnType<typeof fakeEnv>, fail = false) {
     const calls: Array<boolean | undefined> = [];
     const reg = registration();
@@ -274,7 +274,7 @@ describe('amendment 12: new versions reach open pages', () => {
     return { sw, calls, reg, newVersion: () => needRefresh?.() };
   }
 
-  it('asks for a new version each time the start screen shows, not again while it stays (FR-102)', () => {
+  it('asks for a new version each time the start screen shows, not again while it stays', () => {
     const f = fakeEnv();
     const s = setup(f);
     expect(s.reg.update).toHaveBeenCalledTimes(1);
@@ -287,7 +287,7 @@ describe('amendment 12: new versions reach open pages', () => {
     expect(s.reg.update).toHaveBeenCalledTimes(3);
   });
 
-  it('a reload that restores a round applies a waiting version before the first key or touch (FR-104)', () => {
+  it('a reload that restores a round applies a waiting version before the first key or touch', () => {
     const f = fakeEnv('v1');
     const s = setup(f);
     s.sw.report(ROUND);
@@ -295,7 +295,7 @@ describe('amendment 12: new versions reach open pages', () => {
     expect(s.calls).toEqual([true]);
   });
 
-  it('after the first key a version found during the round waits, and the round end reports it (FR-103)', () => {
+  it('after the first key a version found during the round waits, and the round end reports it', () => {
     const f = fakeEnv('v1');
     const s = setup(f);
     s.sw.report(ROUND);
@@ -314,7 +314,7 @@ describe('amendment 12: new versions reach open pages', () => {
     expect(seen).toEqual([true, false]);
   });
 
-  it('after the first key a parent screen holds a waiting version until it closes (refactor R3)', () => {
+  it('after the first key a parent screen holds a waiting version until it closes', () => {
     const f = fakeEnv('v1');
     const s = setup(f);
     s.sw.report({ ...START, parentOpen: true });
@@ -329,7 +329,7 @@ describe('amendment 12: new versions reach open pages', () => {
     expect(s.calls).toEqual([true]);
   });
 
-  it('"Nochmal" applies it and leaves the round kind for the new page, which reads it once (FR-103)', () => {
+  it('"Nochmal" applies it and leaves the round kind for the new page, which reads it once', () => {
     const f = fakeEnv('v1');
     const s = setup(f);
     f.touch();

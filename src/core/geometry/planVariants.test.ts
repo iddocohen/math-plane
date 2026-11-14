@@ -108,3 +108,23 @@ describe('planVariants', () => {
     expect(planVariants(p, createRng(5), SMALL, 2)).toEqual(planVariants(p, createRng(5), SMALL, 2));
   });
 });
+
+describe('planCandidates drops stack changes that look the same as the right building', () => {
+  it('rejects a cube added on a square hidden behind nearer stacks of a 3×3 plan', () => {
+    const p: Plan = [
+      [3, 0, 2],
+      [2, 2, 0],
+      [2, 2, 2],
+    ];
+    const hidden: Plan = [
+      [3, 1, 2],
+      [2, 2, 0],
+      [2, 2, 2],
+    ];
+    const limits: PlanLimits = { size: 3, minStack: 0, maxStack: 3 };
+    const plans = planCandidates(p, limits).map((v) => v.plan);
+    expect(plans.some((v) => plansEqual(v, hidden))).toBe(false);
+    // A change on a square whose top shows is still a variant.
+    expect(plans.some((v) => plansEqual(v, [[2, 0, 2], [2, 2, 0], [2, 2, 2]]))).toBe(true);
+  });
+});

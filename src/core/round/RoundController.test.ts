@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defaultSettings } from '../settings/defaults';
 import type { Settings } from '../settings/schema';
 import { emptyProgress, emptyRecords, roundSchema, type Progress } from '../storage/schemas';
@@ -441,6 +441,49 @@ describe('RoundController: pause, time, settings and storage', () => {
     expect(noKind.state().task.kind).not.toBe('koerper');
     const otherMode = new RoundController({ rules: bauenRules, settings: settings(), progress: emptyProgress(), seed: 6, now: () => 0, stored });
     expect(otherMode.restored).toBe(false);
+  });
+
+  it('hands out the last bomb as a copy and the task read-only', () => {
+    const { round } = treffer();
+    round.tapChoice(slotsOf(round).right);
+    const view = round.state();
+    expect(view.lastBomb).not.toBeNull();
+    (view.lastBomb as { hit: boolean }).hit = !view.lastBomb!.hit;
+    expect(round.state().lastBomb!.hit).not.toBe(view.lastBomb!.hit);
+    // Only typed, never called: the task a view reads is deeply read-only, so tsc rejects the change.
+    const change = () => {
+      // @ts-expect-error `right` is a read-only array in the view.
+      view.task.right.push(9);
+    };
+    expect(change).toBeTypeOf('function');
+  });
+
+  it('continues a stored round with its own seed when the page gives another one', () => {
+    const { round } = treffer({ seed: 5 });
+    const stored = round.toStored()!;
+    const again = new RoundController({ rules: trefferRules, settings: settings(), progress: emptyProgress(), seed: 77, now: () => 0, stored });
+    expect(again.restored).toBe(true);
+    expect(again.state().task).toEqual(round.state().task);
+    expect(again.toStored()!.seed).toBe(5);
+  });
+
+  it('warns and starts a new round when a stored round cannot be rebuilt', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { round } = treffer();
+      const broken: typeof trefferRules = {
+        ...trefferRules,
+        restoreState: () => {
+          throw new Error('broken state');
+        },
+      };
+      const again = new RoundController({ rules: broken, settings: settings(), progress: emptyProgress(), seed: 6, now: () => 0, stored: round.toStored() });
+      expect(again.restored).toBe(false);
+      expect(again.toStored()!.seed).toBe(6);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('stored round could not be continued'), expect.any(Error));
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('restores the marks of a wrong "Fertig" in "Bauen und Malen"', () => {

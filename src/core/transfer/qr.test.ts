@@ -35,7 +35,7 @@ function linkOfBytes(n: number): string {
   return head + body;
 }
 
-describe('qrMatrix (FR-118)', () => {
+describe('qrMatrix (FR-053)', () => {
   it('uses error correction M and a 4-module quiet zone', () => {
     expect(QR_ECC).toBe('M');
     expect(QR_QUIET_ZONE).toBe(4);

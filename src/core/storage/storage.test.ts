@@ -101,7 +101,7 @@ describe('round trip', () => {
     };
     const records = { version: 1 as const, best: { 'treffer:10': 8, 'bauenMalen:5': 4 } };
     const hangar = { ...emptyHangar(), stars: 12, owned: ['planeColor.blue'], chosen: { ...emptyHangar().chosen, planeColor: 'planeColor.blue' } };
-    const round = storedRound({ seed: 42, mode: 'bauenMalen', level: 2, elapsedMs: 61_500, tasksDone: 2 });
+    const round = storedRound({ seed: 42, mode: 'bauenMalen', level: 2, elapsedMs: 61_500, bombsTotal: 0, bombsLeft: 0, tasksTotal: 4, tasksDone: 2 });
     saveSettings(kv, settings);
     saveProgress(kv, progress);
     saveRecords(kv, records);
@@ -176,6 +176,21 @@ describe('damaged data resets with a reason (FR-052)', () => {
     kv.set(unreadableKey(ROUND_KEY), 'older copy');
     expect(loadRound(kv)).toEqual({ value: null, resetReason: 'none' });
     expect(kv.get(unreadableKey(ROUND_KEY))).toBe('older copy');
+  });
+
+  it('a round with counts that cannot occur in play is rejected as invalid', () => {
+    const impossible: Partial<StoredRound>[] = [
+      { bombsTotal: 5, bombsLeft: 6 },
+      { bombsTotal: 5, bombsLeft: 0, hits: 6 },
+      { mode: 'bauenMalen', bombsTotal: 0, bombsLeft: 0, tasksTotal: 3, tasksDone: 4 },
+      { mode: 'bauenMalen', bombsTotal: 0, bombsLeft: 0, tasksTotal: 3, tasksDone: 1, solvedAlone: 2 },
+    ];
+    for (const over of impossible) {
+      const kv = memoryKeyValue({ [ROUND_KEY]: JSON.stringify(storedRound(over)) });
+      expect(loadRound(kv), JSON.stringify(over)).toEqual({ value: null, resetReason: 'invalid' });
+    }
+    const possible = memoryKeyValue({ [ROUND_KEY]: JSON.stringify(storedRound({ bombsTotal: 5, bombsLeft: 2, hits: 3 })) });
+    expect(loadRound(possible).resetReason).toBe('none');
   });
 
   it('a round from a newer version is kept and its key is cleared', () => {

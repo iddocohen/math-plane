@@ -14,15 +14,15 @@ description: "Task list for Mathe-Flieger"
 
 ## Phase 1: Setup
 
-- [ ] T001 Copy tooling from math-soccer into the repository root: `package.json` (name `math-plane`, same scripts and pinned versions), `pnpm-lock.yaml`, `tsconfig.json`, `eslint.config.js`, `index.html` (title "Mathe-Flieger", theme color `#7ec8f0`), `src/globals.d.ts`; run `pnpm install` (research R1, R19)
-- [ ] T002 Copy `vite.config.ts` from math-soccer; manifest name and short_name "Mathe-Flieger", sky-blue background and theme colors; keep the Vitest node and jsdom projects and the PWA workbox settings
-- [ ] T003 [P] Copy `playwright.config.ts` from math-soccer with ports 4373 and 4374, base path `/math-plane/`, projects chromium, firefox, webkit, ipad-landscape, ipad-portrait, base-path, performance; remove the Fire tablet projects and `tests/e2e/silk.ts` use
-- [ ] T004 [P] Copy `.github/workflows/pages.yml` from math-soccer with `--base=/math-plane/` and the comment naming `https://iddocohen.github.io/math-plane/` (R14)
-- [ ] T005 [P] Create `public/icons/icon.svg`, `public/icons/icon-192.png`, `public/icons/icon-512.png` showing the red plane on sky blue (draw the SVG; render the PNGs from it with a script in the scratchpad)
-- [ ] T006 [P] Copy reused assets from math-soccer `public/assets/` to `public/assets/`: `Fredoka.ttf`, `OFL.txt`, `star_04.png`, `star_06.png`, `star_07.png`, `flare_01.png`, `light_01.png`, `coin.mp3`, `fanfare.mp3`, `pop.mp3`; copy their license rows from math-soccer `README.md` into a new `README.md` asset table (FR-058)
-- [ ] T007 [P] Copy `src/core/rng.ts`, `src/core/util.ts` and their tests from math-soccer
-- [ ] T008 [P] Create `src/i18n/de.ts` and `src/i18n/index.ts` (structure from math-soccer) with all German strings of contracts/screens.md and the help sentences of research R15; copy and adapt `src/i18n/de.test.ts` so it fails on "falsch", "verloren" and any string longer than 8 words except help sentences (FR-040, FR-041)
-- [ ] T009 Verify `pnpm lint`, `pnpm typecheck`, `pnpm test` pass on the empty skeleton with `src/main.tsx` rendering a placeholder
+- [X] T001 Copy tooling from math-soccer into the repository root: `package.json` (name `math-plane`, same scripts and pinned versions), `pnpm-lock.yaml`, `tsconfig.json`, `eslint.config.js`, `index.html` (title "Mathe-Flieger", theme color `#7ec8f0`), `src/globals.d.ts`; run `pnpm install` (research R1, R19)
+- [X] T002 Copy `vite.config.ts` from math-soccer; manifest name and short_name "Mathe-Flieger", sky-blue background and theme colors; keep the Vitest node and jsdom projects and the PWA workbox settings
+- [X] T003 [P] Copy `playwright.config.ts` from math-soccer with ports 4373 and 4374, base path `/math-plane/`, projects chromium, firefox, webkit, ipad-landscape, ipad-portrait, base-path, performance; remove the Fire tablet projects and `tests/e2e/silk.ts` use
+- [X] T004 [P] Copy `.github/workflows/pages.yml` from math-soccer with `--base=/math-plane/` and the comment naming `https://iddocohen.github.io/math-plane/` (R14)
+- [X] T005 [P] Create `public/icons/icon.svg`, `public/icons/icon-192.png`, `public/icons/icon-512.png` showing the red plane on sky blue (draw the SVG; render the PNGs from it with a script in the scratchpad)
+- [X] T006 [P] Copy reused assets from math-soccer `public/assets/` to `public/assets/`: `Fredoka.ttf`, `OFL.txt`, `star_04.png`, `star_06.png`, `star_07.png`, `flare_01.png`, `light_01.png`, `coin.mp3`, `fanfare.mp3`, `pop.mp3`; copy their license rows from math-soccer `README.md` into a new `README.md` asset table (FR-058)
+- [X] T007 [P] Copy `src/core/rng.ts`, `src/core/util.ts` and their tests from math-soccer
+- [X] T008 [P] Create `src/i18n/de.ts` and `src/i18n/index.ts` (structure from math-soccer) with all German strings of contracts/screens.md and the help sentences of research R15; copy and adapt `src/i18n/de.test.ts` so it fails on "falsch", "verloren" and any string longer than 8 words except help sentences (FR-040, FR-041)
+- [X] T009 Verify `pnpm lint`, `pnpm typecheck`, `pnpm test` pass on the empty skeleton with `src/main.tsx` rendering a placeholder
 
 ## Phase 2: Foundational (blocks all stories)
 

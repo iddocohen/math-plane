@@ -94,6 +94,11 @@ function confetti(rand: () => number, x: number, y: number, n: number): Particle
   }));
 }
 
+/** The Kenney smoke puff at a random angle, turning by up to `spin` either way. */
+function smokeLook(rand: () => number, spin: number): Pick<ParticleInit, 'image' | 'rotation' | 'spin'> {
+  return { image: 'smoke', rotation: rand() * 6, spin: spread(rand, spin) };
+}
+
 /**
  * Soft dots that drift, slow down and grow, `n` of them: smoke (`smoke` true, drawn with the Kenney smoke puff and
  * turning slowly) or bubbles.
@@ -103,7 +108,7 @@ function puffs(rand: () => number, x: number, y: number, n: number, colors: read
     const size = scaleFor((diameter + rand() * diameter * 0.8) * K);
     return {
       shape: 'dot',
-      ...(smoke ? { image: 'smoke' as const, rotation: rand() * 6, spin: spread(rand, 1) } : {}),
+      ...(smoke ? smokeLook(rand, 1) : {}),
       ...thrown(rand, x, y, speed, 20),
       life: 800 + rand() * 700,
       size,
@@ -158,11 +163,9 @@ export function trailPuff(x: number, y: number, tint: number, rand: () => number
   const size = scaleFor(16 * K);
   return {
     shape: 'dot',
-    image: 'smoke',
     x,
     y: y + spread(rand, 4),
-    rotation: rand() * 6,
-    spin: spread(rand, 1.5),
+    ...smokeLook(rand, 1.5),
     vx: -40 * K,
     vy: spread(rand, 10) * K,
     life: TRAIL_LIFE_MS,

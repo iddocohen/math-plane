@@ -15,6 +15,9 @@
  *   sound, and so does every sound until decoding has finished. New CC0 recordings join `BUNDLED` once their license
  *   is checked (FR-043, FR-058).
  * - Every sound follows "Geräusche" (`sound.effects`), read on each sound so a change applies at once.
+ * - The jingles (`levelUp`, `roundEnd`) share one channel: a jingle asked for while another still plays is skipped,
+ *   so a level up just before the round end does not play two jingles over each other. A jingle lasts as long as its
+ *   decoded file, or as its synthesized notes.
  * - No sound is sad or punishing (FR-041): the miss is two soft, low tones.
  * - Browsers start audio suspended. iPad Safari resumes it only inside a user gesture that counts as one: a key press,
  *   a click, or the end of a touch. installUnlock listens to keydown, pointerup, touchend and click for the whole
@@ -106,8 +109,9 @@ export type Sfx = Record<SoundName, () => void> & {
   /** Plays a sound by name. */
   play(name: SoundName): void;
   /**
-   * Creates the audio context and, while it is not running, calls `resume()` and plays a silent buffer at once; then
-   * decodes the bundled files once. Call it synchronously from a user gesture. Resolves when both end.
+   * Creates the audio context and, while it is not running, calls `resume()` and plays a silent buffer at once; starts
+   * the music when the resume settles, and decodes the bundled files once meanwhile. Call it synchronously from a user
+   * gesture. Resolves when both end.
    */
   unlock(): Promise<void>;
   /**
@@ -117,9 +121,10 @@ export type Sfx = Record<SoundName, () => void> & {
   installUnlock(target?: EventTarget): () => void;
   /** Plays the music loop while `on` (see musicWanted), once the context runs; stops it at once when false. */
   setMusic(on: boolean): void;
-  /** True while the music loop plays. */
-  readonly musicPlaying: boolean;
 };
+
+/** The sounds that share the jingle channel. */
+const JINGLES: ReadonlySet<SoundName> = new Set<SoundName>(['levelUp', 'roundEnd']);
 
 export function createSfx(options: SfxOptions): Sfx {
   const make = options.createContext ?? (() => new AudioContext());
@@ -135,17 +140,23 @@ export function createSfx(options: SfxOptions): Sfx {
       return response.arrayBuffer();
     });
 
+  /** Fetches and decodes one bundled file; null without `clips`, or when the file is missing or broken. */
+  const loadBuffer = async (c: AudioContextLike, file: string): Promise<AudioBuffer | null> => {
+    const url = options.clips;
+    if (!url) return null;
+    try {
+      return await c.decodeAudioData(await fetchClip(url(file)));
+    } catch {
+      return null;
+    }
+  };
+
   /** Fetches and decodes every bundled file once; a file that fails stays out of `decoded`, so its synthesized sound plays. */
   const loadClips = (c: AudioContextLike): Promise<void> => {
-    const url = options.clips;
-    if (!url) return Promise.resolve();
     loading ??= Promise.all(
       (Object.entries(BUNDLED) as Array<[SoundName, string]>).map(async ([name, file]) => {
-        try {
-          decoded.set(name, await c.decodeAudioData(await fetchClip(url(file))));
-        } catch {
-          // Missing or broken file: the synthesized sound stays.
-        }
+        const buffer = await loadBuffer(c, file);
+        if (buffer) decoded.set(name, buffer);
       }),
     ).then(() => undefined);
     return loading;
@@ -163,15 +174,12 @@ export function createSfx(options: SfxOptions): Sfx {
     return clipGain.node;
   };
 
-  /** Plays a decoded clip at MAX_GAIN; false when the clip is not decoded. */
-  const playClip = (c: AudioContextLike, name: SoundName): boolean => {
-    const buffer = decoded.get(name);
-    if (!buffer) return false;
+  /** Plays a decoded clip at MAX_GAIN. */
+  const playClip = (c: AudioContextLike, buffer: AudioBuffer) => {
     const src = c.createBufferSource();
     src.buffer = buffer;
     src.connect(clipOutput(c));
     src.start(c.currentTime);
-    return true;
   };
 
   const running = (): AudioContextLike | null => (ctx && ctx.state === 'running' ? ctx : null);
@@ -228,8 +236,14 @@ export function createSfx(options: SfxOptions): Sfx {
     src.stop(t + duration + 0.02);
   };
 
-  /** The synthesized sounds, shaped after the prototype's `SND`. */
-  const SYNTH: Record<SoundName, (c: AudioContextLike) => void> = {
+  /** Triangle notes `step` seconds apart, each `length` long; returns the seconds until the last one ends. */
+  const melody = (c: AudioContextLike, notes: readonly number[], step: number, length: number): number => {
+    notes.forEach((f, i) => tone(c, f, length, 'triangle', 0.14, null, i * step));
+    return (notes.length - 1) * step + length;
+  };
+
+  /** The synthesized sounds, shaped after the prototype's `SND`; a jingle returns its length in seconds. */
+  const SYNTH: Record<SoundName, (c: AudioContextLike) => number | void> = {
     propeller: (c) => hush(c, 0.6, 0.12, 900),
     whistle: (c) => tone(c, 900, 0.5, 'sine', 0.08, 300),
     hit: (c) => {
@@ -254,8 +268,8 @@ export function createSfx(options: SfxOptions): Sfx {
       tone(c, 1047, 0.6, 'triangle', 0.2, null, 0.42);
     },
     tap: (c) => tone(c, 880, 0.05, 'triangle', 0.05),
-    levelUp: (c) => [587, 659, 740, 784].forEach((f, i) => tone(c, f, 0.18, 'triangle', 0.14, null, i * 0.1)),
-    roundEnd: (c) => [523, 587, 659, 784, 880, 1047].forEach((f, i) => tone(c, f, 0.2, 'triangle', 0.14, null, i * 0.11)),
+    levelUp: (c) => melody(c, [587, 659, 740, 784], 0.1, 0.18),
+    roundEnd: (c) => melody(c, [523, 587, 659, 784, 880, 1047], 0.11, 0.2),
   };
 
   /** A one-sample silent sound: iOS Safari starts the context's output only once a sound starts inside a gesture. */
@@ -281,12 +295,13 @@ export function createSfx(options: SfxOptions): Sfx {
       return Promise.resolve();
     }
     const c = ctx;
-    return Promise.all([
-      resumed.catch(() => {
+    // The music starts once the resume settles; the sound files load meanwhile.
+    const musicStarted = resumed
+      .catch(() => {
         // Refused outside a gesture: the next key press or tap tries again.
-      }),
-      loadClips(c),
-    ]).then(() => applyMusic());
+      })
+      .then(() => applyMusic());
+    return Promise.all([musicStarted, loadClips(c)]).then(() => undefined);
   };
 
   // The music loop: wanted by the app, loaded once, started and stopped with short fades.
@@ -319,19 +334,12 @@ export function createSfx(options: SfxOptions): Sfx {
     }
     if (voice) return;
     if (!music) {
-      const url = options.clips;
-      if (!url) return;
-      musicLoad ??= fetchClip(url(MUSIC_FILE))
-        .then((data) => c.decodeAudioData(data))
-        .then(
-          (buffer) => {
-            music = buffer;
-            applyMusic();
-          },
-          () => {
-            // Missing or broken file: the music stays silent.
-          },
-        );
+      // A missing or broken file keeps the music silent.
+      musicLoad ??= loadBuffer(c, MUSIC_FILE).then((buffer) => {
+        if (!buffer) return;
+        music = buffer;
+        applyMusic();
+      });
       return;
     }
     const t = c.currentTime;
@@ -347,10 +355,23 @@ export function createSfx(options: SfxOptions): Sfx {
     voice = { src, gain, startedAt: t, offset: musicOffset };
   };
 
+  /** When the jingle channel is free again, in context seconds. */
+  let jingleEnds = 0;
+
   const play = (name: SoundName) => {
     const c = options.sound().effects ? running() : null;
-    if (!c || playClip(c, name)) return;
-    SYNTH[name](c);
+    if (!c) return;
+    const jingle = JINGLES.has(name);
+    if (jingle && c.currentTime < jingleEnds) return;
+    const clip = decoded.get(name);
+    let seconds: number | void;
+    if (clip) {
+      playClip(c, clip);
+      seconds = clip.duration;
+    } else {
+      seconds = SYNTH[name](c);
+    }
+    if (jingle) jingleEnds = c.currentTime + (seconds ?? 0);
   };
 
   const sounds = Object.fromEntries(SOUND_NAMES.map((name) => [name, () => play(name)])) as Record<SoundName, () => void>;
@@ -379,9 +400,6 @@ export function createSfx(options: SfxOptions): Sfx {
     setMusic(on: boolean) {
       musicOn = on;
       applyMusic();
-    },
-    get musicPlaying() {
-      return voice !== null;
     },
   };
 }

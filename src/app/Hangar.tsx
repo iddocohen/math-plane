@@ -10,7 +10,8 @@
  * - An item not owned shows its price ("Kaufen für N Sterne"). When the balance reaches it, a tap buys and chooses it
  *   at once for a price up to `ASK_ABOVE` stars; a dearer item asks "Für N Sterne kaufen?" with "Ja" and "Nein"
  *   first. When the balance is too low, the item shows "noch N Sterne" and a tap does nothing.
- * - Every change goes to `onChange` at once, so the app stores it and the plane of a paused round shows it.
+ * - Every change goes to `onChange` at once, so the app stores it and the plane of a paused round shows it. A purchase
+ *   comes with `bought` true, so the app plays the coin sound.
  * - Escape goes back through the app's keys (keyboard.ts); while the question shows, Escape answers "Nein" and the
  *   Hangar stays.
  *
@@ -29,8 +30,8 @@ import { t } from '../i18n';
 
 interface Props {
   hangar: HangarData;
-  /** A purchase or a choice; the app stores it and shows it on the plane. */
-  onChange: (hangar: HangarData) => void;
+  /** A purchase (`bought` true) or a choice; the app stores it and shows it on the plane. */
+  onChange: (hangar: HangarData, bought: boolean) => void;
   onBack: () => void;
 }
 
@@ -136,18 +137,20 @@ export function Hangar({ hangar, onChange, onBack }: Props): ReactElement {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [asking]);
 
+  const purchase = (item: HangarItem) => {
+    const next = buy(hangar, item.id);
+    if (next) onChange(next, true);
+  };
+
   const tap = (item: HangarItem) => {
-    if (isOwned(hangar, item.id)) onChange(choose(hangar, item.id));
+    if (isOwned(hangar, item.id)) onChange(choose(hangar, item.id), false);
     else if (!canBuy(hangar, item.id)) return;
     else if (item.price > ASK_ABOVE) setQuestion(item);
-    else onChange(buy(hangar, item.id) ?? hangar);
+    else purchase(item);
   };
 
   const answer = (yes: boolean) => {
-    if (yes && question) {
-      const next = buy(hangar, question.id);
-      if (next) onChange(next);
-    }
+    if (yes && question) purchase(question);
     setQuestion(null);
   };
 

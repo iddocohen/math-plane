@@ -6,10 +6,10 @@
  * It is decoration only: hidden from screen readers, behind the title and buttons, and it takes no taps. The clouds and
  * the plane move with CSS animations, which stop when the system asks for reduced motion (styles.css).
  */
-import type { ReactElement } from 'react';
+import { memo, type ReactElement } from 'react';
 import { assetUrl } from '../assets';
 import type { HangarLook } from '../core/rewards/hangar';
-import { SCENERY_FILES, type SceneryPicture } from '../game/scenery';
+import { CLOUD_FILES, SCENERY_FILES, type SceneryPicture } from '../game/scenery';
 import { PlanePicture } from './Hangar';
 
 /** The pictures on the horizon: which one, its middle in % of the width, and its height in % of the screen height. */
@@ -28,27 +28,31 @@ const HORIZON: ReadonlyArray<[SceneryPicture, number, number]> = [
   ['treeLong', 97, 14],
 ];
 
-/** The drifting clouds: file, height in % of the screen, % from the top, seconds per crossing, and a start delay. */
-const CLOUDS: ReadonlyArray<[string, number, number, number, number]> = [
-  ['cloud1.png', 11, 6, 70, -10],
-  ['cloud2.png', 13, 16, 95, -60],
-  ['cloud3.png', 9, 24, 80, -35],
-  ['cloud4.png', 12, 10, 110, -85],
+/** The drifting clouds, one per file in CLOUD_FILES: height in % of the screen, % from the top, seconds per crossing, and a start delay. */
+const CLOUDS: ReadonlyArray<[number, number, number, number]> = [
+  [11, 6, 70, -10],
+  [13, 16, 95, -60],
+  [9, 24, 80, -35],
+  [12, 10, 110, -85],
 ];
 
-export function StartScenery({ look }: { look: HangarLook | null }): ReactElement {
+/** Memoized: the start screen re-renders often, and the scenery changes only with the plane's look. */
+export const StartScenery = memo(function StartScenery({ look }: { look: HangarLook | null }): ReactElement {
   return (
     <div className="start-scenery" aria-hidden="true">
       <img className="start-sun" src={assetUrl(SCENERY_FILES.sun.file)} alt="" />
-      {CLOUDS.map(([file, height, top, seconds, delay]) => (
-        <img
-          key={file}
-          className="start-cloud"
-          src={assetUrl(file)}
-          alt=""
-          style={{ height: `${height}vh`, top: `${top}%`, animationDuration: `${seconds}s`, animationDelay: `${delay}s` }}
-        />
-      ))}
+      {CLOUD_FILES.map((file, i) => {
+        const [height, top, seconds, delay] = CLOUDS[i]!;
+        return (
+          <img
+            key={file}
+            className="start-cloud"
+            src={assetUrl(file)}
+            alt=""
+            style={{ height: `${height}vh`, top: `${top}%`, animationDuration: `${seconds}s`, animationDelay: `${delay}s` }}
+          />
+        );
+      })}
       {look && (
         <div className="start-plane">
           <PlanePicture look={look} width={150} height={66} className="start-plane-picture" />
@@ -68,4 +72,4 @@ export function StartScenery({ look }: { look: HangarLook | null }): ReactElemen
       ))}
     </div>
   );
-}
+});

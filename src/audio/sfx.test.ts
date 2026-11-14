@@ -355,6 +355,51 @@ describe('sfx (FR-043, research R13)', () => {
     });
   });
 
+  describe('jingle channel', () => {
+    /** Oscillators started so far: the synthesized level up has 4 notes, the round end 6. */
+    const notes = (f: ReturnType<typeof fakeContext>) => f.started.filter((s) => s.kind === 'osc').length;
+    const at = (f: ReturnType<typeof fakeContext>, seconds: number) => ((f.ctx as { currentTime: number }).currentTime = seconds);
+
+    it('skips the round-end jingle while the synthesized level-up jingle still plays', async () => {
+      const { f, sfx } = setup();
+      await sfx.unlock();
+      sfx.levelUp();
+      at(f, 0.4);
+      sfx.roundEnd();
+      expect(notes(f)).toBe(4);
+      at(f, 0.5);
+      sfx.roundEnd();
+      expect(notes(f)).toBe(10);
+    });
+
+    it('keeps the other sounds playing during a jingle', async () => {
+      const { f, sfx } = setup();
+      await sfx.unlock();
+      sfx.roundEnd();
+      sfx.cheer();
+      expect(notes(f)).toBe(10);
+    });
+
+    it('uses the decoded file length for a jingle with a file', async () => {
+      const f = fakeContext(async (data) => ({ clip: new TextDecoder().decode(data), duration: 2 }) as unknown as AudioBuffer);
+      const sfx = createSfx({
+        sound: () => ({ effects: true }),
+        createContext: () => f.ctx,
+        clips: (file) => file,
+        fetchClip: async (url) => new TextEncoder().encode(url).buffer as ArrayBuffer,
+      });
+      await sfx.unlock();
+      const jingles = () => f.started.flatMap((s) => ((s.buffer as { clip?: string } | undefined)?.clip ? [(s.buffer as { clip: string }).clip] : []));
+      sfx.levelUp();
+      at(f, 1.5);
+      sfx.roundEnd();
+      expect(jingles()).toEqual(['levelup.mp3']);
+      at(f, 2.1);
+      sfx.roundEnd();
+      expect(jingles()).toEqual(['levelup.mp3', 'roundend.mp3']);
+    });
+  });
+
   describe('music', () => {
     it('plays only with "Musik" on, no paused round and the page in view', () => {
       expect(musicWanted({ on: true, paused: false, hidden: false })).toBe(true);
@@ -368,7 +413,7 @@ describe('sfx (FR-043, research R13)', () => {
     });
 
     /** A context whose decoded music is a 10-second buffer; sources record loop, start offset and stop. */
-    function setupMusic(fail = false) {
+    function setupMusic(fail = false, slowClips = false) {
       const f = fakeContext(async () => ({ duration: 10, music: true }) as unknown as AudioBuffer);
       const sources: Array<{ loop: boolean; offset: number | undefined; stopped: boolean }> = [];
       const make = f.ctx.createBufferSource.bind(f.ctx);
@@ -397,6 +442,8 @@ describe('sfx (FR-043, research R13)', () => {
         fetchClip: async (url) => {
           fetched.push(url);
           if (fail && url.endsWith(MUSIC_FILE)) throw new Error('missing');
+          // Sound files that never arrive, to show the music does not wait for them.
+          if (slowClips && !url.endsWith(MUSIC_FILE)) return new Promise<ArrayBuffer>(() => {});
           return new ArrayBuffer(1);
         },
       });
@@ -410,14 +457,21 @@ describe('sfx (FR-043, research R13)', () => {
       sfx.setMusic(true);
       await flush();
       expect(fetched.filter((u) => u.endsWith(MUSIC_FILE))).toEqual([]);
-      expect(sfx.musicPlaying).toBe(false);
+      expect(sources).toEqual([]);
       await sfx.unlock();
       await flush();
       expect(fetched.filter((u) => u.endsWith(MUSIC_FILE))).toHaveLength(1);
-      expect(sfx.musicPlaying).toBe(true);
       expect(sources).toEqual([{ loop: true, offset: 0, stopped: false }]);
       expect(Math.max(...f.gains)).toBeLessThanOrEqual(MAX_GAIN);
       expect(f.gains).toContain(MUSIC_GAIN);
+    });
+
+    it('starts once the context resumes, without waiting for the sound files', async () => {
+      const { sfx, sources } = setupMusic(false, true);
+      sfx.setMusic(true);
+      void sfx.unlock();
+      await flush();
+      expect(sources).toEqual([{ loop: true, offset: 0, stopped: false }]);
     });
 
     it('stops when no longer wanted and goes on from where it stopped', async () => {
@@ -427,7 +481,6 @@ describe('sfx (FR-043, research R13)', () => {
       await flush();
       (f.ctx as { currentTime: number }).currentTime = 13;
       sfx.setMusic(false);
-      expect(sfx.musicPlaying).toBe(false);
       expect(sources[0]!.stopped).toBe(true);
       sfx.setMusic(true);
       expect(sources).toHaveLength(2);
@@ -439,7 +492,6 @@ describe('sfx (FR-043, research R13)', () => {
       sfx.setMusic(true);
       await sfx.unlock();
       await flush();
-      expect(sfx.musicPlaying).toBe(false);
       expect(sources).toEqual([]);
       expect(() => sfx.tap()).not.toThrow();
       expect(f.started.length).toBeGreaterThan(0);

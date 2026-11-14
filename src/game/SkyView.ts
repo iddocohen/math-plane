@@ -1,23 +1,23 @@
 /**
  * The backdrop of every round (FR-001, prototype `drawBg`): a sky gradient with drifting clouds, a band of hills, and
- * the grass field with a faint square grid. The sky, hills and field are drawn once into a cached texture; each cloud
- * is an image that drifts to the right and comes back in on the left.
+ * the grass field with a faint square grid. Each cloud is an image that drifts to the right and comes back in on the
+ * left.
  *
  * The scenery (scenery.ts) stands on the hills: Kenney trees, bushes, fences and a sun, bundled files that the scene
- * loads in its preload (`loadSceneryImages`). The clouds are Kenney clouds too. A picture whose file did not load is
- * left out, and the clouds fall back to the cloud drawn in code.
+ * loads in its preload (`loadSceneryImages`). The sky, hills, field and scenery are drawn into one cached texture,
+ * again only when the set of loaded scenery pictures changes. The clouds are Kenney clouds too (CLOUD_FILES). A
+ * picture whose file did not load is left out, and the clouds fall back to the cloud drawn in code.
  */
 import Phaser from 'phaser';
 import { assetUrl } from '../assets';
 import { CachedTexture } from './cachedTexture';
 import { CSS } from './palette';
-import { hillY, SCENERY_FILES, sceneryLayout, type SceneryPicture } from './scenery';
+import { CLOUD_FILES, hillY, SCENERY_FILES, sceneryLayout, type SceneryItem, type SceneryPicture } from './scenery';
 import { DEPTH, FIELD_GRID, SKY_BOTTOM, WORLD_HEIGHT, WORLD_WIDTH } from './world';
 
 const BACKDROP = 'sky-backdrop';
 const CLOUD = 'sky-cloud';
-/** The Kenney clouds (cloud1.png to cloud4.png), 300 pixels wide. */
-export const CLOUD_FILES = ['cloud1.png', 'cloud2.png', 'cloud3.png', 'cloud4.png'] as const;
+/** The width of the Kenney cloud files. */
 const CLOUD_FILE_WIDTH = 300;
 const cloudKey = (i: number) => `sky-cloud-${i}`;
 const sceneryKey = (p: SceneryPicture) => `sky-${p}`;
@@ -58,7 +58,10 @@ export function driftX(x: number, dx: number, width: number): number {
   return ((((x + dx + width) % span) + span) % span) - width;
 }
 
-function drawBackdrop(ctx: CanvasRenderingContext2D): void {
+/** A scenery picture placed on the backdrop, with its loaded image. */
+type PlacedPicture = SceneryItem & { image: CanvasImageSource };
+
+function drawBackdrop(ctx: CanvasRenderingContext2D, scenery: readonly PlacedPicture[]): void {
   const sky = ctx.createLinearGradient(0, 0, 0, SKY_BOTTOM);
   sky.addColorStop(0, CSS.skyTop);
   sky.addColorStop(1, CSS.skyBottom);
@@ -90,6 +93,8 @@ function drawBackdrop(ctx: CanvasRenderingContext2D): void {
     ctx.lineTo(WORLD_WIDTH, y);
   }
   ctx.stroke();
+  // The scenery over the hills, back to front.
+  for (const p of scenery) ctx.drawImage(p.image, p.x, p.y, p.width, p.height);
 }
 
 /** The cloud is drawn opaque and shown at CLOUD_ALPHA, so the circles do not show where they overlap. */
@@ -116,14 +121,18 @@ export class SkyView {
   private readonly clouds: Array<{ image: Phaser.GameObjects.Image; spec: CloudSpec; x: number }>;
 
   constructor(scene: Phaser.Scene, rand: () => number = Math.random) {
-    // Drawn once per session; later rounds reuse the textures.
-    if (!scene.textures.exists(BACKDROP)) new CachedTexture(scene, BACKDROP, WORLD_WIDTH, WORLD_HEIGHT).draw('backdrop', drawBackdrop);
-    scene.add.image(0, 0, BACKDROP).setOrigin(0, 0).setDepth(DEPTH.sky);
-    for (const item of sceneryLayout()) {
-      const key = sceneryKey(item.picture);
-      if (!scene.textures.exists(key)) continue;
-      scene.add.image(item.x, item.y, key).setOrigin(0, 0).setDisplaySize(item.width, item.height).setDepth(DEPTH.sky);
+    // Drawn once per session; later rounds reuse the textures. The backdrop is drawn again only when another set of
+    // scenery pictures has loaded, recorded in the texture's customData.
+    const scenery = sceneryLayout()
+      .filter((item) => scene.textures.exists(sceneryKey(item.picture)))
+      .map((item) => ({ ...item, image: scene.textures.get(sceneryKey(item.picture)).getSourceImage() as CanvasImageSource }));
+    const loaded = [...new Set(scenery.map((p) => p.picture))].join(' ');
+    const drawn = scene.textures.exists(BACKDROP) ? (scene.textures.get(BACKDROP).customData as { scenery?: string }).scenery : undefined;
+    if (drawn !== loaded) {
+      new CachedTexture(scene, BACKDROP, WORLD_WIDTH, WORLD_HEIGHT).draw('backdrop', (ctx) => drawBackdrop(ctx, scenery));
+      (scene.textures.get(BACKDROP).customData as { scenery?: string }).scenery = loaded;
     }
+    scene.add.image(0, 0, BACKDROP).setOrigin(0, 0).setDepth(DEPTH.sky);
     if (!scene.textures.exists(CLOUD)) new CachedTexture(scene, CLOUD, CLOUD_SIZE.width, CLOUD_SIZE.height, 2).draw('cloud', drawCloud);
     const kenney = CLOUD_FILES.every((_, i) => scene.textures.exists(cloudKey(i)));
     this.clouds = cloudLayout(rand).map((spec, i) => {

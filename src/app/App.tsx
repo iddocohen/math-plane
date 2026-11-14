@@ -114,9 +114,6 @@ function resetNoteLines(reasons: ReturnType<Persistence['resetReasons']>): strin
   return lines;
 }
 
-/** How long the level-up jingle lasts; a round end within this time plays no second jingle. */
-const LEVEL_UP_JINGLE_MS = 1500;
-
 function createApp() {
   const search = window.location.search;
   const persistence = createPersistence(localStorageKeyValue());
@@ -189,9 +186,6 @@ export function App() {
   const [host] = useState(newGameHost);
   const parentRef = useRef<HTMLDivElement | null>(null);
 
-  // When the last level-up jingle started, so the round-end jingle does not play over it.
-  const lastLevelUp = useRef(-Infinity);
-
   /** Creates a round of `mode`, continuing `stored` when it fits. */
   const makeRound = useCallback(
     (mode: Mode, stored: StoredRound | null = null): Round => {
@@ -216,12 +210,11 @@ export function App() {
         } else if (e.type === 'roundEnded') {
           if (!e.summary.quit) {
             saves.report(persistence.saveRecords(e.summary.records));
-            // A level up just before the end already played its jingle.
-            if (performance.now() - lastLevelUp.current > LEVEL_UP_JINGLE_MS) sfx.roundEnd();
+            // Skipped by sfx while a level-up jingle still plays.
+            sfx.roundEnd();
           }
           setSummary(e.summary);
         } else if (e.type === 'levelUp') {
-          lastLevelUp.current = performance.now();
           sfx.levelUp();
         } else if (e.type === 'bombLanded') {
           if (e.hit) sfx.hit();
@@ -345,30 +338,28 @@ export function App() {
     };
   }, [sfx]);
 
+  // Whether the page is hidden: the one visibility listener, read by the music and the round below.
+  const [hidden, setHidden] = useState(() => document.visibilityState === 'hidden');
+  useEffect(() => {
+    const onVisibility = () => setHidden(document.visibilityState === 'hidden');
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
   // The music (sound.music): on the start screen and in a running round; it stops while the round is paused or the
   // page is hidden.
   useEffect(() => {
-    const update = () =>
-      sfx.setMusic(musicWanted({ on: settings.sound.music, paused: round?.controller.state().phase === 'paused', hidden: document.visibilityState === 'hidden' }));
+    const update = () => sfx.setMusic(musicWanted({ on: settings.sound.music, paused: round?.controller.state().phase === 'paused', hidden }));
     update();
-    const unsubscribe = round?.controller.subscribe((e) => {
+    return round?.controller.subscribe((e) => {
       if (e.type === 'phaseChanged') update();
     });
-    document.addEventListener('visibilitychange', update);
-    return () => {
-      unsubscribe?.();
-      document.removeEventListener('visibilitychange', update);
-    };
-  }, [sfx, round, settings.sound.music]);
+  }, [sfx, round, settings.sound.music, hidden]);
 
   // Play time stops while the page is hidden; a hidden page also pauses the bombs in the air.
   useEffect(() => {
-    if (round === null) return;
-    const onVisibility = () => round.controller.setHidden(document.visibilityState === 'hidden');
-    onVisibility();
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [round]);
+    round?.controller.setHidden(hidden);
+  }, [round, hidden]);
 
   const onSceneKey = useCallback((k: SceneKey) => {
     gameRef.current?.key(k);
@@ -388,9 +379,8 @@ export function App() {
 
   // A purchase or a choice in the Hangar: stored, and shown at once on the plane of a paused round (FR-045).
   const changeHangar = useCallback(
-    (next: HangarData) => {
-      // A purchase spends stars; choosing an item does not.
-      if (next.stars < persistence.hangar().stars) sfx.coin();
+    (next: HangarData, bought: boolean) => {
+      if (bought) sfx.coin();
       saves.report(persistence.saveHangar(next));
       const stored = persistence.hangar();
       setHangar(stored);
@@ -546,6 +536,9 @@ export function App() {
     [parent, openParent, closeParent],
   );
 
+  // The start screen's plane; a new object only when the Hangar changes, so StartScenery does not redraw.
+  const look = useMemo(() => lookOf(hangar), [hangar]);
+
   const notices = [
     ...(resetLines.length > 0 ? [{ id: 'reset', lines: resetLines, onDismiss: () => setResetLines([]) }] : []),
     ...(saveFailed ? [{ id: 'save', lines: [t().storage.saveFailed], onDismiss: saves.dismiss }] : []),
@@ -560,7 +553,7 @@ export function App() {
           gear={gear}
           hangar={settings.hangar ? { stars: hangar.stars, onOpen: openHangar } : null}
           notices={notices}
-          look={lookOf(hangar)}
+          look={look}
         />
       ) : (
         <ErrorBoundary>

@@ -22,6 +22,9 @@ export const SCENERY_FILES = {
 
 export type SceneryPicture = keyof typeof SCENERY_FILES;
 
+/** The Kenney clouds in public/assets (cloud1.png to cloud4.png), 300 pixels wide; they drift, so they are not in the layout. */
+export const CLOUD_FILES = ['cloud1.png', 'cloud2.png', 'cloud3.png', 'cloud4.png'] as const;
+
 /** The band scenery may fill, in world units: below the plane and the top buttons, above the field. */
 export const SCENERY_BAND = { top: 170, bottom: 390 } as const;
 

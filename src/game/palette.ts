@@ -18,8 +18,8 @@ export const CSS = {
   parachute: '#ff6b6b',
 } as const;
 
-/** The five building and target colors of the prototype (`PAL`). */
-export const PIECE_COLORS = ['#e0413a', '#2f7fd1', '#f2c230', '#3fa34d', '#ef7d22'] as const;
+/** The five building and target colors of the prototype (`PAL`); the tasks carry them (core/tasks/colors.ts). */
+export { PIECE_COLORS } from '../core/tasks/colors';
 
 /** The celebration colors of the prototype (`CELEB`). */
 export const CELEBRATION = [0xffd23f, 0xff8fb1, 0x7ee0ff, 0x9be27a, 0xffffff] as const;

@@ -4,10 +4,12 @@
  *
  * The banner reads what the task carries: a target solid or shape (`target`) for "Körper finden" and "Formen finden",
  * the side for view tasks. A task without what its banner needs shows the kind's name. The message line names a hit,
- * a right or almost right "Fertig" and a level up; the kinds' own lines after a miss come with their rules.
+ * what a missed bomb hit ("Das ist die Kugel.", core/tasks/check.ts), a right or almost right "Fertig" and a level up.
  */
 import type { RoundEvent } from '../core/round/RoundController';
 import type { TaskBase } from '../core/round/rules';
+import { checkBomb } from '../core/tasks/check';
+import { isTrefferTask } from '../core/tasks/types';
 import { FLAT_SHAPES, SOLIDS, type FlatShape, type Solid } from '../core/types';
 import { t } from '../i18n';
 
@@ -50,7 +52,8 @@ export function messageAfter(e: RoundEvent, task: TaskBase, pick: (n: number) =>
     case 'taskStarted':
       return null;
     case 'bombLanded':
-      return e.hit ? text.hit[pick(text.hit.length)]! : text.nextPass;
+      if (e.hit) return text.hit[pick(text.hit.length)]!;
+      return (isTrefferTask(task) && checkBomb(task, e.choice).named) || text.nextPass;
     case 'checked':
       if (!e.right) return text.almost;
       if (task.kind === 'bauen') return text.built;

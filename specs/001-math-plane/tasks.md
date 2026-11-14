@@ -55,13 +55,13 @@ description: "Task list for Mathe-Flieger"
 **Goal**: "Treffer" levels 1 and 2 are playable end to end.
 **Independent Test**: quickstart scenario 1 and 2.
 
-- [ ] T031 [P] [US1] Implement `koerper` and `formen` generation in `src/core/tasks/generate.ts`: 4 distinct solids from Würfel, Quader, Zylinder, Kugel, Pyramide in distinct colors, or 4 flat shapes (Rechteck aspect 1.6 to 2.2, others varied in size and turn up to 20°, FR-024c); exactly one answer; tests over 500 seeds
-- [ ] T032 [P] [US1] Implement `checkBomb` in `src/core/tasks/check.ts` returning hit and the German name line for a miss ("Das ist die Kugel.")
-- [ ] T033 [US1] Implement `src/core/round/TrefferRules.ts`: slots, `tapChoice` only in `aim`, one bomb per pass, `landBomb`, hit → star, celebrate, next task; miss → reshuffle slots so at least the hit choice moves, plane turns; bomb bay counts down; round ends after the last bomb; fallback landing timer of pass time + 1 s (R9, R18, FR-008, FR-014, FR-015); tests including "taps during pass are ignored"
-- [ ] T034 [P] [US1] Implement `src/game/SolidsView.ts` and `src/game/ShapesView.ts` drawing solids in isometric and flat shapes from above, as the prototype `drawSolid` and `drawFlat`, with tap areas, the keyboard marker and slot moves (FR-002, FR-003)
-- [ ] T035 [US1] Implement `src/game/BombView.ts`: release when the plane reaches the target, parabola ending at the target center in 0.9 s, burst by bomb style (stars and confetti default), soft smoke puff on a miss; propeller and whistle sounds; calls `landBomb()` (R9)
-- [ ] T036 [US1] Wire "Treffer" into `RoundScene.ts`, `RoundOverlay.tsx` and `App.tsx`: banner "Triff den Zylinder!", "Treffer!", miss line, keyboard arrows plus Enter or Space (FR-012)
-- [ ] T037 [US1] Playwright `tests/e2e/treffer.spec.ts` with fixtures copied from math-soccer (`fixtures.ts`, `gameWait.ts`, `layout.ts`): keyboard-only round of 10 bombs, hit and miss feedback, reshuffle, one bomb per pass, end screen and "Nochmal"
+- [X] T031 [P] [US1] Implement `koerper` and `formen` generation in `src/core/tasks/generate.ts`: 4 distinct solids from Würfel, Quader, Zylinder, Kugel, Pyramide in distinct colors, or 4 flat shapes (Rechteck aspect 1.6 to 2.2, others varied in size and turn up to 20°, FR-024c); exactly one answer; tests over 500 seeds
+- [X] T032 [P] [US1] Implement `checkBomb` in `src/core/tasks/check.ts` returning hit and the German name line for a miss ("Das ist die Kugel.")
+- [X] T033 [US1] Implement `src/core/round/TrefferRules.ts`: slots, `tapChoice` only in `aim`, one bomb per pass, `landBomb`, hit → star, celebrate, next task; miss → reshuffle slots so at least the hit choice moves, plane turns; bomb bay counts down; round ends after the last bomb; fallback landing timer of pass time + 1 s (R9, R18, FR-008, FR-014, FR-015); tests including "taps during pass are ignored"
+- [X] T034 [P] [US1] Implement `src/game/SolidsView.ts` and `src/game/ShapesView.ts` drawing solids in isometric and flat shapes from above, as the prototype `drawSolid` and `drawFlat`, with tap areas, the keyboard marker and slot moves (FR-002, FR-003)
+- [X] T035 [US1] Implement `src/game/BombView.ts`: release when the plane reaches the target, parabola ending at the target center in 0.9 s, burst by bomb style (stars and confetti default), soft smoke puff on a miss; propeller and whistle sounds; calls `landBomb()` (R9)
+- [X] T036 [US1] Wire "Treffer" into `RoundScene.ts`, `RoundOverlay.tsx` and `App.tsx`: banner "Triff den Zylinder!", "Treffer!", miss line, keyboard arrows plus Enter or Space (FR-012)
+- [X] T037 [US1] Playwright `tests/e2e/treffer.spec.ts` with fixtures copied from math-soccer (`fixtures.ts`, `gameWait.ts`, `layout.ts`): keyboard-only round of 10 bombs, hit and miss feedback, reshuffle, one bomb per pass, end screen and "Nochmal"
 
 **Checkpoint**: MVP playable.
 

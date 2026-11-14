@@ -1,13 +1,13 @@
 /**
  * The rules object of each mode for the RoundController (research R18). This is the one place the app picks them, so
- * the mode rules replace the stand-ins below without a change to App.tsx: `TrefferRules` (T033) and `BauenMalenRules`
- * (T045).
+ * a mode's rules replace its stand-in below without a change to App.tsx: "Treffer" runs with `trefferRules` (T033);
+ * `BauenMalenRules` (T045) replaces the "Bauen und Malen" stand-in.
  *
- * Until then a round runs with stand-in rules: the task has its kind, level and side but nothing to answer. In
- * "Treffer" no slot holds a choice, so taps do nothing; in "Bauen und Malen" every input is ignored and "Fertig"
- * solves the task, so a round can still be played to its end.
+ * Until then "Bauen und Malen" runs with stand-in rules: the task has its kind, level and side but nothing to answer,
+ * every input is ignored and "Fertig" solves the task, so a round can still be played to its end.
  */
-import type { BauenMalenRules, ModeRules, TaskBase, TrefferRules } from '../core/round/rules';
+import type { BauenMalenRules, ModeRules, TaskBase } from '../core/round/rules';
+import { trefferRules } from '../core/round/TrefferRules';
 import type { Mode } from '../core/types';
 
 const base = {
@@ -23,15 +23,6 @@ const base = {
   restoreState: () => null,
 };
 
-const trefferStandIn: TrefferRules = {
-  ...base,
-  mode: 'treffer',
-  choiceAt: () => null,
-  isHit: () => false,
-  afterMiss: (_task, state) => state,
-  slots: () => [],
-};
-
 const bauenMalenStandIn: BauenMalenRules = {
   ...base,
   mode: 'bauenMalen',
@@ -41,5 +32,5 @@ const bauenMalenStandIn: BauenMalenRules = {
 
 /** The rules of `mode`. */
 export function rulesFor(mode: Mode): ModeRules {
-  return mode === 'treffer' ? trefferStandIn : bauenMalenStandIn;
+  return mode === 'treffer' ? (trefferRules as unknown as ModeRules) : bauenMalenStandIn;
 }

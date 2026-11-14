@@ -1,7 +1,8 @@
 /**
  * How the views of the task kinds plug into the round scene (plan "Controller decides, view animates"). Later tasks add
- * their views here (SolidsView and ShapesView in T034, BuildingView and CardsView in T041, CratesView in T046,
- * GridView in T053) by adding a factory to TASK_VIEWS; RoundScene and App stay as they are.
+ * their views here (BuildingView and CardsView in T041, CratesView in T046, GridView in T053) by adding a factory to
+ * TASK_VIEWS; RoundScene and App stay as they are. "Treffer" choices use TargetsView (SolidsView, ShapesView) and the
+ * bomb of every "Treffer" kind falls in BombView.
  *
  * - A view gets a `TaskViewContext`: the scene, the plane, the effects, and `input`, the small part of the
  *   RoundController a view may call. Tap areas call `input` (for example `tapChoice(slot)` on a solid, `typeHeight` from
@@ -12,10 +13,15 @@
  *   view moves its marker or calls `input`. "Fertig", help and pause go to the controller directly from the app.
  */
 import type Phaser from 'phaser';
+import type { SoundName } from '../audio/sfx';
 import type { Phase, RoundEvent, RoundState } from '../core/round/RoundController';
 import type { TaskKind } from '../core/types';
+import { bombView } from './BombView';
+import type { BombStyle } from './effects';
 import type { EffectsView } from './EffectsView';
 import type { PlaneView } from './PlaneView';
+import { shapesView } from './ShapesView';
+import { solidsView } from './SolidsView';
 
 /** The calls a view may make on the round: every one is ignored when it does not fit the phase or the task. */
 export interface RoundInput {
@@ -44,6 +50,12 @@ export interface TaskViewContext {
   effects: EffectsView;
   /** Play time in milliseconds since the scene started; it stops while the round is paused. */
   playMs(): number;
+  /** The round's phase now. */
+  phase(): Phase;
+  /** Plays a sound effect (src/audio/sfx.ts); silent when the app gave no sounds. */
+  sound(name: SoundName): void;
+  /** How a hit bursts: the bomb style chosen in the Hangar, confetti by default. */
+  bombStyle(): BombStyle;
 }
 
 export interface TaskView {
@@ -71,5 +83,5 @@ export interface TaskViewFactory {
   create(ctx: TaskViewContext): TaskView;
 }
 
-/** The views of the task kinds; empty until the task kinds are built. */
-export const TASK_VIEWS: TaskViewFactory[] = [];
+/** The views of the task kinds. */
+export const TASK_VIEWS: TaskViewFactory[] = [solidsView, shapesView, bombView];

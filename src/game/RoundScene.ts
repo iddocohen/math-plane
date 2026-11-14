@@ -7,13 +7,18 @@
  *   current kind, then every view gets the new state.
  * - Play time: every frame moves the views on by the frame time times `speed()` (the test hook `?speed=`), and not at
  *   all while the round is paused, so a paused round holds still.
- * - A bomb pass (`passStarted`) sends the plane across. The bomb view (T035) lands the bomb; until it exists, and
- *   whenever a view does not, `controller.tick()` lands it after the fallback time (research R18).
+ * - A bomb pass (`passStarted`) sends the plane across, then the task views get the event: BombView restarts the
+ *   pass with its release point and lands the bomb. Whenever no view lands it, `controller.tick()` does after the
+ *   fallback time (research R18).
  * - After a miss (`feedback`) or a solved task (`celebrate`), the scene waits NEXT_DELAY_MS of play time and until no
  *   view is busy, then calls `next()`. A right "Fertig" throws confetti.
+ * - While the scene runs, the canvas carries `data-scene="round"`, so end-to-end tests wait for the scene before they
+ *   press keys that go to it.
  */
 import Phaser from 'phaser';
+import type { SoundName } from '../audio/sfx';
 import type { Phase, RoundController, RoundEvent, RoundState } from '../core/round/RoundController';
+import type { BombStyle } from './effects';
 import { EffectsView, loadParticleImages } from './EffectsView';
 import { DEFAULT_LOOK, PlaneView, type PlaneLook } from './PlaneView';
 import { SkyView } from './SkyView';
@@ -27,6 +32,10 @@ export interface RoundSceneOptions {
   speed: () => number;
   /** The plane's look from the Hangar. */
   look?: () => PlaneLook;
+  /** The bomb style from the Hangar; confetti without it. */
+  bombStyle?: () => BombStyle;
+  /** Plays a sound effect; silent without it. */
+  sound?: (name: SoundName) => void;
 }
 
 export const ROUND_SCENE = 'round';
@@ -65,6 +74,9 @@ export class RoundScene extends Phaser.Scene {
       plane: this.plane,
       effects: this.effects,
       playMs: () => this.playMs,
+      phase: () => this.state.phase,
+      sound: (name) => this.options.sound?.(name),
+      bombStyle: () => this.options.bombStyle?.() ?? 'confetti',
     };
     this.views = TASK_VIEWS.map((factory) => ({ factory, view: factory.create(ctx) }));
     this.unsubscribe = this.controller.subscribe((e) => this.onEvent(e));
@@ -73,6 +85,7 @@ export class RoundScene extends Phaser.Scene {
     this.state = this.controller.state();
     this.showState();
     this.waitIfDone(this.state.phase);
+    this.game.canvas?.setAttribute('data-scene', ROUND_SCENE);
   }
 
   update(_time: number, delta: number): void {
@@ -110,9 +123,10 @@ export class RoundScene extends Phaser.Scene {
   private onEvent(e: RoundEvent): void {
     const before = this.state;
     this.state = this.controller.state();
-    for (const { view } of this.current()) view.event?.(e, this.state);
+    // The plane starts the pass before the views see it, so a view can restart it with a release point.
     if (e.type === 'passStarted') this.plane.startPass(null);
-    else if (e.type === 'checked' && e.right) this.effects.celebrate();
+    for (const { view } of this.current()) view.event?.(e, this.state);
+    if (e.type === 'checked' && e.right) this.effects.celebrate();
     else if (e.type === 'phaseChanged') this.waitIfDone(e.phase);
     if (e.type === 'taskStarted' && before.task.kind !== this.state.task.kind) {
       for (const { factory, view } of this.views) if (!factory.kinds.includes(this.state.task.kind)) view.hide();
@@ -133,6 +147,7 @@ export class RoundScene extends Phaser.Scene {
   }
 
   private teardown(): void {
+    this.game?.canvas?.removeAttribute('data-scene');
     this.unsubscribe?.();
     this.unsubscribe = null;
     for (const { view } of this.views) view.destroy();

@@ -56,15 +56,21 @@ export async function seedStorage(page: Page, entries: Record<string, unknown>, 
 
 /**
  * Starts a round from the start screen with a key (1 for "Treffer", 2 for "Bauen und Malen", contracts/screens.md) and
- * waits on game state until the round aims, then returns the round overlay. The key is pressed once, as soon as the
- * start screen is visible.
+ * waits on game state until the round aims and its scene runs (the canvas carries `data-scene="round"`), so keys for
+ * the scene reach it; then returns the round overlay. The key is pressed once, as soon as the start screen is visible.
  */
 export async function startRound(page: Page, key: '1' | '2' = '1'): Promise<Locator> {
   await expect(page.getByTestId('start')).toBeVisible();
   await page.keyboard.press(key);
   const round = page.getByTestId('round');
   await expect(round).toHaveAttribute('data-phase', 'aim');
+  await sceneReady(page);
   return round;
+}
+
+/** Waits until the round scene runs, for example again after "Nochmal". */
+export async function sceneReady(page: Page): Promise<void> {
+  await expect(page.locator('canvas[data-scene="round"]')).toHaveCount(1);
 }
 
 /**

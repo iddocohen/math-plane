@@ -262,12 +262,12 @@ export function App() {
     let cancelled = false;
     void loadGame().then(({ createGame }) => {
       if (cancelled || gameRef.current) return;
-      gameRef.current = createGame(host, round.controller, { speed: parts.speed });
+      gameRef.current = createGame(host, round.controller, { speed: parts.speed, sound: (name) => sfx.play(name) });
     });
     return () => {
       cancelled = true;
     };
-  }, [round, host, parts.speed]);
+  }, [round, host, parts.speed, sfx]);
 
   useEffect(() => () => gameRef.current?.destroy(), []);
 

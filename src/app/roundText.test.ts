@@ -27,6 +27,13 @@ describe('messageAfter', () => {
     expect(messageAfter({ type: 'bombLanded', hit: false, slot: 0, choice: 1 }, task({}))).toBe('Noch ein Anflug!');
   });
 
+  it('a miss on a solid or shape names what was hit (FR-010)', () => {
+    const koerper = task({ choices: ['zylinder', 'kugel', 'wuerfel', 'quader'], target: 'zylinder', rightIndexes: [0], colors: [] });
+    expect(messageAfter({ type: 'bombLanded', hit: false, slot: 3, choice: 1 }, koerper)).toBe('Das ist die Kugel.');
+    const formen = task({ kind: 'formen', level: 2, choices: ['kreis', 'dreieck', 'quadrat', 'rechteck'], target: 'kreis', rightIndexes: [0], colors: [] });
+    expect(messageAfter({ type: 'bombLanded', hit: false, slot: 0, choice: 1 }, formen)).toBe('Das ist das Dreieck.');
+  });
+
   it('a right "Fertig" praises by kind; a wrong one asks to look at the marks', () => {
     const bauen = task({ kind: 'bauen', mode: 'bauenMalen' });
     expect(messageAfter({ type: 'checked', right: true, marked: [] }, bauen)).toBe('Super gebaut!');

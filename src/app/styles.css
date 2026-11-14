@@ -459,3 +459,292 @@ button:focus-visible {
   color: #fff;
   text-shadow: 0 3px 0 var(--blue);
 }
+
+/* Parent gate, parent menu, settings and progress pages, transfer dialog (adapted from math-soccer). */
+.parent-gate {
+  position: relative;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.parent-gate-ring {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.parent-gate-ring circle,
+.hold-ring circle {
+  fill: none;
+  stroke: var(--gold-dark);
+  stroke-width: 4;
+}
+
+.parent-gate-ring[data-progress='0'] circle,
+.hold-ring[data-progress='0'] circle {
+  stroke: transparent;
+}
+
+.parent-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(36 50 74 / 60%);
+  pointer-events: auto;
+}
+
+.parent-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 280px;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.parent-menu h2 {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.settings-page {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left));
+  background: var(--sky-light);
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+  pointer-events: auto;
+}
+
+.settings-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  background: var(--sky-light);
+}
+
+.settings-header h2 {
+  margin: 0;
+}
+
+.settings-actions,
+.data-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.settings-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid rgb(36 50 74 / 20%);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.settings-group legend {
+  padding: 0 8px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.settings-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.field > label {
+  flex: 1 1 160px;
+}
+
+.check-field > label {
+  flex: 1 1 auto;
+}
+
+.field-label {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.field input[type='number'],
+.field select {
+  min-height: 44px;
+  min-width: 120px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgb(36 50 74 / 30%);
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+}
+
+.field input[type='checkbox'] {
+  width: 28px;
+  height: 28px;
+}
+
+.field-errors {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--red);
+  font-weight: 700;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.file-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: #fff;
+  font-weight: 600;
+  box-shadow: 0 3px 0 rgb(0 0 0 / 20%);
+  cursor: pointer;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.build-version {
+  width: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.progress-section {
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.progress-section h3 {
+  margin: 0 0 8px;
+}
+
+.progress-table {
+  width: 100%;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  background: var(--card);
+}
+
+.progress-table th,
+.progress-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgb(36 50 74 / 15%);
+  white-space: nowrap;
+}
+
+.progress-reset p {
+  margin: 0 0 8px;
+}
+
+.transfer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.transfer h3 {
+  margin: 8px 0 0;
+}
+
+.transfer-qr {
+  width: min(320px, 100%);
+  min-width: 240px;
+  height: auto;
+  aspect-ratio: 1;
+  background: #fff;
+}
+
+.transfer-link-text {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: monospace;
+  font-size: 14px;
+  user-select: all;
+}
+
+.transfer-dialog {
+  max-width: min(480px, calc(100vw - 32px));
+  text-align: center;
+}
+
+.hold-button {
+  position: relative;
+  padding-left: 52px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.hold-ring {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  width: 36px;
+  height: 36px;
+  transform: translateY(-50%) rotate(-90deg);
+  pointer-events: none;
+}

@@ -230,6 +230,35 @@ describe('RoundController in "Treffer"', () => {
     expect(round.state().level).toBe(2);
   });
 
+  it('lowers the level after 2 of 3 tasks with help and says nothing about it (FR-030)', () => {
+    const progress = emptyProgress();
+    progress.levels.treffer = 2;
+    const { round, events } = treffer({ progress });
+    expect(round.state().level).toBe(2);
+    for (let i = 0; i < 2; i++) {
+      // A miss first makes the task count as solved with help.
+      bomb(round, 'wrong');
+      round.next();
+      bomb(round, 'right');
+      round.next();
+    }
+    expect(round.state().level).toBe(1);
+    expect(events.some((e) => e.type === 'levelUp')).toBe(false);
+  });
+
+  it('never lowers the level below the parent start level (FR-031)', () => {
+    const progress = emptyProgress();
+    progress.levels.treffer = 3;
+    const { round } = treffer({ progress, settings: settings((x) => (x.levels.treffer = { start: 3, hardest: 5 })) });
+    for (let i = 0; i < 3; i++) {
+      bomb(round, 'wrong');
+      round.next();
+      bomb(round, 'right');
+      round.next();
+    }
+    expect(round.state().level).toBe(3);
+  });
+
   it('ignores "Bauen und Malen" inputs and "Fertig"', () => {
     const { round, events } = treffer();
     round.typeHeight(0, 0, 2);

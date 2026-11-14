@@ -115,12 +115,12 @@ description: "Task list for Mathe-Flieger"
 **Goal**: parent gate, settings, adaptive levels, progress, backup.
 **Independent Test**: quickstart scenario 7.
 
-- [ ] T059 [P] [US6] Copy `src/app/ParentGate.tsx`, `src/app/useHold.ts` and tests from math-soccer (hold 2 s, short tap and keys do nothing, game pauses) (FR-050)
-- [ ] T060 [US6] Implement `src/app/SettingsPage.tsx` with groups Stufen, Themen, Gebäude, Runde, Ton, Bedienung, Hangar, Daten (FR-051), structure copied from math-soccer; start and hardest level kept in order; "Kopie wiederherstellen"; version and build date; tests
-- [ ] T061 [P] [US6] Copy `src/app/TransferDialog.tsx` and test from math-soccer; "Daten sichern", "Daten laden", "QR-Code" in settings (FR-053)
-- [ ] T062 [US6] Implement `src/core/progress/summarize.ts` and `src/app/ProgressPage.tsx`: per mode current level; table per level and kind (alone, with help, "gemeistert"); table per side for view kinds; bests; "Fortschritt zurücksetzen", "Alles zurücksetzen" with confirmation (FR-048, FR-049); tests
-- [ ] T063 [US6] Connect adaptive levels to the round: level up line "Neue Stufe: Große Baupläne!", nothing on level down, current level per mode kept across rounds and sessions, settings applied on close (FR-030, FR-031, FR-054)
-- [ ] T064 [US6] Playwright `tests/e2e/settings.spec.ts` and `tests/e2e/persistence.spec.ts` (adapted from math-soccer): gate, start level 3 for Treffer, kind off, reload keeps settings, progress counts, export and import
+- [X] T059 [P] [US6] Copy `src/app/ParentGate.tsx`, `src/app/useHold.ts` and tests from math-soccer (hold 2 s, short tap and keys do nothing, game pauses) (FR-050)
+- [X] T060 [US6] Implement `src/app/SettingsPage.tsx` with groups Stufen, Themen, Gebäude, Runde, Ton, Bedienung, Hangar, Daten (FR-051), structure copied from math-soccer; start and hardest level kept in order; "Kopie wiederherstellen"; version and build date; tests
+- [X] T061 [P] [US6] Copy `src/app/TransferDialog.tsx` and test from math-soccer; "Daten sichern", "Daten laden", "QR-Code" in settings (FR-053)
+- [X] T062 [US6] Implement `src/core/progress/summarize.ts` and `src/app/ProgressPage.tsx`: per mode current level; table per level and kind (alone, with help, "gemeistert"); table per side for view kinds; bests; "Fortschritt zurücksetzen", "Alles zurücksetzen" with confirmation (FR-048, FR-049); tests
+- [X] T063 [US6] Connect adaptive levels to the round: level up line "Neue Stufe: Große Baupläne!", nothing on level down, current level per mode kept across rounds and sessions, settings applied on close (FR-030, FR-031, FR-054)
+- [X] T064 [US6] Playwright `tests/e2e/settings.spec.ts` and `tests/e2e/persistence.spec.ts` (adapted from math-soccer): gate, start level 3 for Treffer, kind off, reload keeps settings, progress counts, export and import
 
 ## Phase 9: User Story 7 - Stars and the Hangar (P3)
 

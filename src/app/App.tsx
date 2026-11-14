@@ -19,9 +19,15 @@
  * beenden?". "Zum Start" leaves the round without a round end. The Hangar icon opens the Hangar over the round and
  * pauses it; closing the Hangar continues the round unless the child paused it.
  *
- * The gear does nothing yet: the parent gate (T059) makes it open the parent menu after a 2-second hold.
+ * Parent screens (FR-050, FR-054): the gear (ParentGate.tsx) opens the parent menu after a 2-second hold and pauses the
+ * round. "Einstellungen" and "Fortschritt" open their pages over the screen. Saved settings reach the app at once (the
+ * start screen, the clock, the number pad) and reach the running round when the parent screens close: settings that
+ * shape tasks apply from the next task, the round keeps its length (RoundController.applySettings). Closing continues the
+ * round unless the child paused it.
+ *
+ * A save link (`#save=`) opens the transfer dialog on load (TransferDialog.tsx, FR-053).
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import { assetUrl, fontReady } from '../assets';
 import { createSfx } from '../audio/sfx';
 import { createSpeaker } from '../audio/speaker';
@@ -30,23 +36,27 @@ import type { ModeRules } from '../core/round/rules';
 import type { StoredRound } from '../core/storage/schemas';
 import { localStorageKeyValue } from '../core/storage/keyValue';
 import { currentLevel, levelDef, levelRange } from '../core/tasks/levels';
-import { saveCodeFromHash } from '../core/transfer/transfer';
+import type { Settings } from '../core/settings/schema';
+import { decodeTransfer, saveCodeFromHash, type SaveData } from '../core/transfer/transfer';
 import { MODES, type Mode } from '../core/types';
 import type { GameHandle } from '../game/createGame';
 import type { SceneKey } from '../game/taskViews';
 import { resetMessage, t } from '../i18n';
 import type { KeyAction, KeyScreen } from './keyboard';
 import { rulesFor } from './modeRules';
-import { noFocus } from './noFocus';
 import { PauseScreen } from './PauseScreen';
 import { createPersistence, type DataKind, type Persistence } from './persistence';
-import { HangarScreen, ParentScreen, TransferScreen, type ParentView } from './Placeholders';
+import { ParentGate } from './ParentGate';
+import { HangarScreen } from './Placeholders';
+import { ProgressPage } from './ProgressPage';
 import { createPlayClock, playSpeed, seedFromUrl, speedFromUrl, testFromUrl } from './playClock';
 import { RoundEnd } from './RoundEnd';
 import { RoundOverlay } from './RoundOverlay';
+import { SettingsPage } from './SettingsPage';
 import { bannerText, helpLine, messageAfter } from './roundText';
 import { StartScreen, type ModeButton } from './StartScreen';
 import { swUpdate } from './swUpdate';
+import { TransferDialog, type TransferDialogState } from './TransferDialog';
 import { useRoundState } from './useController';
 import { applyRoundAction, useKeyboard } from './useKeyboard';
 import { useNumberPadShown } from './useScreen';
@@ -129,13 +139,16 @@ interface Round {
   rules: ModeRules;
 }
 
-/** The stand-in for the parent gate (T059): a gear that does nothing yet. */
-function Gear() {
-  return (
-    <button type="button" className="icon-button gear" data-testid="gear" aria-label={t().start.gear} {...noFocus}>
-      <span aria-hidden="true">⚙</span>
-    </button>
-  );
+/** What the parent screens show: the menu over the gear, or a page. */
+type ParentView = 'closed' | 'menu' | 'settings' | 'progress';
+
+/** The transfer dialog: still reading the code, or what it shows, with the decoded save when it is ready. */
+type Transfer = { kind: 'reading' } | (TransferDialogState & { data?: SaveData });
+
+/** Removes `#save=` from the address, so a reload does not ask again. */
+function clearSaveHash(): void {
+  if (saveCodeFromHash(window.location.hash) === null) return;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
 }
 
 /** The element that holds the game's canvas for the whole session; it fills the round screen's `.game-parent`. */
@@ -154,8 +167,11 @@ export function App() {
   const [summary, setSummary] = useState<RoundSummary | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pauseKind, setPauseKind] = useState<'pause' | 'quit' | null>(null);
-  const [overlay, setOverlay] = useState<'hangar' | 'parent' | 'transfer' | null>(() => (saveCodeFromHash(window.location.hash) ? 'transfer' : null));
-  const [parentView, setParentView] = useState<ParentView>('menu');
+  const [overlay, setOverlay] = useState<'hangar' | null>(null);
+  const [parent, setParent] = useState<ParentView>('closed');
+  const [transfer, setTransfer] = useState<Transfer | null>(() => (saveCodeFromHash(window.location.hash) === null ? null : { kind: 'reading' }));
+  // Counts changes of the stored data from the parent screens, so the start screen shows the new levels.
+  const [dataVersion, setDataVersion] = useState(0);
   const [resetLines, setResetLines] = useState(() => resetNoteLines(persistence.resetReasons()));
   const saveFailed = useSyncExternalStore(saves.subscribe, saves.failed);
   const updateWaiting = useSyncExternalStore(swUpdate.subscribe, swUpdate.waiting);
@@ -183,7 +199,8 @@ export function App() {
           saves.report(persistence.awardStars(e.n));
           setStars(persistence.hangar().stars);
         } else if (e.type === 'attemptRecorded') {
-          saves.report(persistence.recordAttempt(e.record, s));
+          // The settings the round uses now: the parent may have changed them during the round (FR-054).
+          saves.report(persistence.recordAttempt(e.record, persistence.settings()));
         } else if (e.type === 'roundEnded') {
           if (!e.summary.quit) saves.report(persistence.saveRecords(e.summary.records));
           setSummary(e.summary);
@@ -306,9 +323,74 @@ export function App() {
 
   const closeOverlay = useCallback(() => {
     setOverlay(null);
-    if (window.location.hash.startsWith('#save=')) history.replaceState(null, '', window.location.pathname + window.location.search);
     if (round && pauseKind === null) round.controller.resume();
   }, [round, pauseKind]);
+
+  // The parent screens (FR-050, FR-054). The latest settings saved while they are open reach the running round once,
+  // when they close; several saves count as one change.
+  const savedSettings = useRef<Settings | null>(null);
+  const settingsSaved = useCallback((next: Settings) => {
+    savedSettings.current = next;
+    setSettings(next);
+  }, []);
+
+  const openParent = useCallback(() => {
+    if (round && round.controller.state().phase !== 'ended') round.controller.pause();
+    setParent('menu');
+  }, [round]);
+
+  const closeParent = useCallback(() => {
+    setParent('closed');
+    const saved = savedSettings.current;
+    savedSettings.current = null;
+    if (saved !== null && round) round.controller.applySettings(saved);
+    // A reset or a loaded file may have changed the stars and the levels.
+    setStars(persistence.hangar().stars);
+    setDataVersion((n) => n + 1);
+    if (round && pauseKind === null && overlay === null) round.controller.resume();
+  }, [round, pauseKind, overlay, persistence]);
+
+  // A save link: decode the code once on load (FR-053).
+  useEffect(() => {
+    const code = saveCodeFromHash(window.location.hash);
+    if (code === null) return;
+    let live = true;
+    decodeTransfer(code).then(
+      (r) => {
+        if (live) setTransfer(r.ok ? { kind: 'ready', summary: r.summary, data: r.data } : { kind: 'invalid' });
+      },
+      () => {
+        if (live) setTransfer({ kind: 'invalid' });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const closeTransfer = useCallback(() => {
+    setTransfer(null);
+    clearSaveHash();
+  }, []);
+
+  const acceptTransfer = useCallback(() => {
+    if (transfer?.kind !== 'ready' || !transfer.data) return closeTransfer();
+    const r = persistence.applyTransfer(transfer.data);
+    if (!r.ok) {
+      // Nothing (or, with `partial`, only part) was changed; `#save=` stays in the address, so a reload asks again.
+      setTransfer({ kind: r.partial ? 'partial' : 'failed' });
+      return;
+    }
+    const next = persistence.settings();
+    setSettings(next);
+    round?.controller.applySettings(next);
+    setStars(persistence.hangar().stars);
+    setDataVersion((n) => n + 1);
+    closeTransfer();
+  }, [transfer, persistence, closeTransfer, round]);
+
+  // A failed or partial transfer keeps `#save=` in the address, so a reload asks again.
+  const dismissTransfer = transfer?.kind === 'failed' || transfer?.kind === 'partial' ? () => setTransfer(null) : closeTransfer;
 
   const again = useCallback(() => {
     if (!round) return;
@@ -337,13 +419,14 @@ export function App() {
         const level = currentLevel(mode, persistence.progress().levels[mode], settings);
         return { mode, level: t().levels.label(level, levelDef(mode, level).name) };
       }),
-    // `round` is listed so the level shown moves after each round, when the start screen shows again.
-    [settings, persistence, round],
+    // `round` is listed so the level shown moves after each round, when the start screen shows again; `dataVersion`
+    // after a reset or a loaded file.
+    [settings, persistence, round, dataVersion],
   );
 
   const ended = round !== null && summary !== null && !summary.quit;
   const keyScreen: KeyScreen | null =
-    overlay === 'hangar' ? 'hangar' : overlay !== null ? null : round === null ? 'start' : ended ? 'roundEnd' : pauseKind !== null ? 'paused' : 'round';
+    parent !== 'closed' || transfer !== null ? null : overlay === 'hangar' ? 'hangar' : round === null ? 'start' : ended ? 'roundEnd' : pauseKind !== null ? 'paused' : 'round';
 
   const onAction = useCallback(
     (action: KeyAction) => {
@@ -369,8 +452,21 @@ export function App() {
 
   // The update rule needs to know what shows (swUpdate.ts).
   useEffect(() => {
-    swUpdate.report({ screen: overlay === 'hangar' ? 'hangar' : round === null ? 'start' : 'round', parentOpen: overlay === 'parent', transferOpen: overlay === 'transfer' });
-  }, [overlay, round]);
+    swUpdate.report({ screen: overlay === 'hangar' ? 'hangar' : round === null ? 'start' : 'round', parentOpen: parent !== 'closed', transferOpen: transfer !== null });
+  }, [overlay, round, parent, transfer]);
+
+  const gear = useMemo(
+    () => (
+      <ParentGate
+        open={parent === 'menu'}
+        onOpen={openParent}
+        onClose={closeParent}
+        onSettings={() => setParent('settings')}
+        onProgress={() => setParent('progress')}
+      />
+    ),
+    [parent, openParent, closeParent],
+  );
 
   const notices = [
     ...(resetLines.length > 0 ? [{ id: 'reset', lines: resetLines, onDismiss: () => setResetLines([]) }] : []),
@@ -383,7 +479,7 @@ export function App() {
         <StartScreen
           modes={modes}
           onStart={startRound}
-          gear={<Gear />}
+          gear={gear}
           hangar={settings.hangar ? { stars, onOpen: openHangar } : null}
           notices={notices}
         />
@@ -391,6 +487,7 @@ export function App() {
         <RoundScreen
           round={round}
           parentRef={parentRef}
+          gear={gear}
           message={message}
           test={parts.test}
           numberPad={numberPad}
@@ -419,17 +516,9 @@ export function App() {
         />
       )}
       {overlay === 'hangar' && <HangarScreen stars={stars} onBack={closeOverlay} />}
-      {overlay === 'parent' && (
-        <ParentScreen
-          view={parentView}
-          onOpen={setParentView}
-          onBack={() => {
-            setParentView('menu');
-            closeOverlay();
-          }}
-        />
-      )}
-      {overlay === 'transfer' && <TransferScreen onBack={closeOverlay} />}
+      {parent === 'settings' && <SettingsPage persistence={persistence} onSaved={settingsSaved} onClose={closeParent} />}
+      {parent === 'progress' && <ProgressPage persistence={persistence} onClose={closeParent} />}
+      {transfer !== null && transfer.kind !== 'reading' && <TransferDialog state={transfer} onAccept={acceptTransfer} onCancel={dismissTransfer} />}
     </div>
   );
 }
@@ -437,6 +526,7 @@ export function App() {
 interface RoundScreenProps {
   round: Round;
   parentRef: RefObject<HTMLDivElement | null>;
+  gear: ReactNode;
   message: string | null;
   test: boolean;
   numberPad: boolean;
@@ -449,7 +539,7 @@ interface RoundScreenProps {
 }
 
 /** The round: the canvas under the overlay. Its own component, so a new state re-renders only the round. */
-function RoundScreen({ round, parentRef, message, test, numberPad, showClock, onHangar, onPause, onHome, onDone, onSceneKey }: RoundScreenProps) {
+function RoundScreen({ round, parentRef, gear, message, test, numberPad, showClock, onHangar, onPause, onHome, onDone, onSceneKey }: RoundScreenProps) {
   const state = useRoundState(round.controller);
   return (
     <main className="round">
@@ -468,7 +558,7 @@ function RoundScreen({ round, parentRef, message, test, numberPad, showClock, on
         onHome={onHome}
         onDone={onDone}
         onSceneKey={onSceneKey}
-        gear={<Gear />}
+        gear={gear}
       />
     </main>
   );

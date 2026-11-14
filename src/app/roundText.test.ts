@@ -22,6 +22,10 @@ describe('bannerText', () => {
 });
 
 describe('messageAfter', () => {
+  it('a level up names the new level (FR-030)', () => {
+    expect(messageAfter({ type: 'levelUp', level: 2, name: 'Große Baupläne' }, task({ mode: 'bauenMalen', kind: 'bauen' }))).toBe('Neue Stufe: Große Baupläne!');
+  });
+
   it('a hit says "Treffer!" or another hit line; a miss says the plane comes again', () => {
     expect(messageAfter({ type: 'bombLanded', hit: true, slot: 0, choice: 0 }, task({}), () => 0)).toBe('Treffer!');
     expect(messageAfter({ type: 'bombLanded', hit: false, slot: 0, choice: 1 }, task({}))).toBe('Noch ein Anflug!');

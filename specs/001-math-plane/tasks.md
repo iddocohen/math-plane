@@ -106,9 +106,9 @@ description: "Task list for Mathe-Flieger"
 **Goal**: three help steps for every kind and auto-help.
 **Independent Test**: quickstart scenario 6.
 
-- [ ] T056 [P] [US5] Implement `src/core/tasks/help.ts` `helpFor(task, state, step)` for all seven kinds as research R15 (sentence, pointer, answer); tests
-- [ ] T057 [US5] Render help in the scene and overlay: blinking target, one wrong plan square's number, faint view in the grid, faint full plan, color dots on regions; H and the yellow "?" button; auto-open after 2 misses and next step per further miss (FR-033, FR-034)
-- [ ] T058 [US5] Playwright `tests/e2e/help.spec.ts`: three H presses per mode, auto-help after 2 misses, no star or extra bomb lost, outcome recorded as withHelp
+- [X] T056 [P] [US5] Implement `src/core/tasks/help.ts` `helpFor(task, state, step)` for all seven kinds as research R15 (sentence, pointer, answer); tests
+- [X] T057 [US5] Render help in the scene and overlay: blinking target, one wrong plan square's number, faint view in the grid, faint full plan, color dots on regions; H and the yellow "?" button; auto-open after 2 misses and next step per further miss (FR-033, FR-034)
+- [X] T058 [US5] Playwright `tests/e2e/help.spec.ts`: three H presses per mode, auto-help after 2 misses, no star or extra bomb lost, outcome recorded as withHelp
 
 ## Phase 8: User Story 6 - Parent settings and progress (P1)
 

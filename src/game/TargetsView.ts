@@ -8,12 +8,16 @@
  *   slot to slot; Enter or Space bombs the marked slot.
  * - A hit target disappears in its burst. After a miss the choices walk to their new slots (`slotsShuffled`) after a
  *   short pause, so the child sees the puff first; the view is busy until they stand.
+ * - Help (FR-033, research R15): from step 2 the right target blinks; at step 3 a big yellow arrow bobs over it. Both
+ *   follow the target when it walks to a new slot.
  */
 import Phaser from 'phaser';
 import type { RoundEvent, RoundState } from '../core/round/RoundController';
 import type { TaskBase } from '../core/round/rules';
 import type { TaskKind } from '../core/types';
 import { CachedTexture } from './cachedTexture';
+import { blinkAlpha, HelpLook } from './helpLook';
+import { CSS } from './palette';
 import { slotPoint, type SlotPoint } from './slots';
 import type { SceneKey, TaskView, TaskViewContext, TaskViewFactory } from './taskViews';
 import { DEPTH } from './world';
@@ -34,6 +38,32 @@ export interface TargetArt<T extends TaskBase> {
   signature(task: T, i: number): string;
   /** Draws choice `i` with its ground middle at (0, 0), in world units. */
   draw(ctx: CanvasRenderingContext2D, task: T, i: number): void;
+}
+
+/** The help arrow in world units: its tip at the bottom middle. */
+const ARROW = { width: 84, height: 104 } as const;
+/** How far the arrow bobs up and down, and how fast. */
+const ARROW_BOB = { px: 10, ms: 900 } as const;
+
+/** A big yellow arrow pointing down, its tip at the bottom middle of the box (help step 3). */
+function drawArrow(ctx: CanvasRenderingContext2D): void {
+  const { width: w, height: h } = ARROW;
+  const m = 6;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, h - m);
+  ctx.lineTo(m, h * 0.52);
+  ctx.lineTo(w * 0.32, h * 0.52);
+  ctx.lineTo(w * 0.32, m);
+  ctx.lineTo(w * 0.68, m);
+  ctx.lineTo(w * 0.68, h * 0.52);
+  ctx.lineTo(w - m, h * 0.52);
+  ctx.closePath();
+  ctx.fillStyle = CSS.gold;
+  ctx.fill();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = CSS.ink;
+  ctx.stroke();
 }
 
 /** The pause after a miss before the choices move, and how long they walk. */
@@ -68,6 +98,12 @@ class TargetsView<T extends TaskBase> implements TaskView {
   private readonly choices: Choice[] = [];
   private readonly zones: Phaser.GameObjects.Zone[] = [];
   private readonly marker: Phaser.GameObjects.Image;
+  private readonly arrow: Phaser.GameObjects.Image;
+  private readonly help = new HelpLook();
+  /** The choices the help points at, and whether the arrow shows. */
+  private helpChoices: number[] = [];
+  private helpArrow = false;
+  private blinkMs = 0;
   private taskId: string | null = null;
   private count = 0;
   private markerSlot = 0;
@@ -97,6 +133,9 @@ class TargetsView<T extends TaskBase> implements TaskView {
     const markerTexture = new CachedTexture(scene, `${prefix}-marker`, rx * 2 + 12, ry * 2 + 12, RESOLUTION);
     markerTexture.draw('marker', (g) => drawMarker(g, rx, ry));
     this.marker = scene.add.image(0, 0, markerTexture.key).setScale(markerTexture.scale).setDepth(DEPTH.targets - 0.5).setVisible(false);
+    const arrowTexture = new CachedTexture(scene, `${prefix}-help-arrow`, ARROW.width, ARROW.height, RESOLUTION);
+    arrowTexture.draw('arrow', drawArrow);
+    this.arrow = scene.add.image(0, 0, arrowTexture.key).setScale(arrowTexture.scale).setOrigin(0.5, 1).setDepth(DEPTH.targets + 0.5).setVisible(false);
   }
 
   show(state: RoundState): void {
@@ -113,7 +152,11 @@ class TargetsView<T extends TaskBase> implements TaskView {
       else zone.disableInteractive();
     });
     this.choices.forEach((c, i) => c.image.setVisible(i < this.count && !c.gone));
+    const mark = this.help.of(state);
+    this.helpChoices = mark?.type === 'target' ? mark.choices : [];
+    this.helpArrow = mark?.type === 'target' && mark.arrow;
     this.placeMarker();
+    this.placeHelp();
   }
 
   event(e: RoundEvent, state: RoundState): void {
@@ -153,6 +196,8 @@ class TargetsView<T extends TaskBase> implements TaskView {
   }
 
   update(ms: number): void {
+    this.blinkMs += ms;
+    this.placeHelp();
     if (this.moveMs === null) return;
     this.moveMs += ms;
     const k = Math.max(0, Math.min(1, this.moveMs / MOVE_MS));
@@ -173,15 +218,19 @@ class TargetsView<T extends TaskBase> implements TaskView {
     this.visible = false;
     this.taskId = null;
     this.moveMs = null;
-    for (const c of this.choices) c.image.setVisible(false);
+    this.helpChoices = [];
+    this.helpArrow = false;
+    for (const c of this.choices) c.image.setVisible(false).setAlpha(1);
     for (const z of this.zones) z.disableInteractive();
     this.marker.setVisible(false);
+    this.arrow.setVisible(false);
   }
 
   destroy(): void {
     for (const c of this.choices) c.image.destroy();
     for (const z of this.zones) z.destroy();
     this.marker.destroy();
+    this.arrow.destroy();
   }
 
   private tap(slot: number): void {
@@ -216,6 +265,19 @@ class TargetsView<T extends TaskBase> implements TaskView {
 
   private place(c: Choice, p: SlotPoint): void {
     c.image.setPosition(p.x, p.y).setDepth(DEPTH.targets + p.y / 10_000);
+  }
+
+  /** The right target blinks from help step 2; the arrow bobs over it at step 3. */
+  private placeHelp(): void {
+    const alpha = blinkAlpha(this.blinkMs);
+    this.choices.forEach((c, i) => c.image.setAlpha(this.helpChoices.includes(i) ? alpha : 1));
+    const target = this.helpArrow ? this.choices[this.helpChoices[0] ?? -1] : undefined;
+    const show = this.visible && target !== undefined && !target.gone;
+    this.arrow.setVisible(show);
+    if (!show) return;
+    const bob = Math.sin((this.blinkMs / ARROW_BOB.ms) * Math.PI * 2) * ARROW_BOB.px;
+    // The texture's top is `originY` above the ground point; the arrow's tip stays a little above it.
+    this.arrow.setPosition(target.image.x, Math.max(ARROW.height, target.image.y - this.art.box.originY + 8 + bob));
   }
 
   private placeMarker(): void {

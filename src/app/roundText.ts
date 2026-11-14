@@ -5,11 +5,13 @@
  * The banner reads what the task carries: a target solid or shape (`target`) for "Körper finden" and "Formen finden",
  * the side for view tasks. A task without what its banner needs shows the kind's name. The message line names a hit,
  * what a missed bomb hit ("Das ist die Kugel.", core/tasks/check.ts), a right or almost right "Fertig" and a level up.
+ * `helpLine` is the sentence of the help step open (core/tasks/help.ts).
  */
-import type { RoundEvent } from '../core/round/RoundController';
+import type { RoundEvent, RoundState } from '../core/round/RoundController';
 import type { TaskBase } from '../core/round/rules';
 import { checkBomb } from '../core/tasks/check';
-import { isTrefferTask } from '../core/tasks/types';
+import { helpFor } from '../core/tasks/help';
+import { isTrefferTask, type Task } from '../core/tasks/types';
 import { FLAT_SHAPES, SOLIDS, type FlatShape, type Solid } from '../core/types';
 import { t } from '../i18n';
 
@@ -64,4 +66,9 @@ export function messageAfter(e: RoundEvent, task: TaskBase, pick: (n: number) =>
     default:
       return undefined;
   }
+}
+
+/** The sentence of the help step open in `state` (FR-033, research R15), or null when no step is open. */
+export function helpLine(state: Pick<RoundState, 'task' | 'taskState' | 'helpStep'>): string | null {
+  return helpFor(state.task as Task, state.taskState, state.helpStep)?.sentence ?? null;
 }

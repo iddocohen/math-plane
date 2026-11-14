@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TaskBase } from '../core/round/rules';
 import { hasForbiddenWord } from '../i18n';
-import { bannerText, messageAfter } from './roundText';
+import { bannerText, helpLine, messageAfter } from './roundText';
 
 const task = (over: Partial<TaskBase> & Record<string, unknown>): TaskBase => ({ id: '1-1', seed: 1, kind: 'koerper', mode: 'treffer', level: 1, ...over });
 
@@ -47,5 +47,20 @@ describe('messageAfter', () => {
     expect(messageAfter({ type: 'taskStarted', task: task({}) }, task({}))).toBeNull();
     expect(messageAfter({ type: 'phaseChanged', phase: 'aim' }, task({}))).toBeUndefined();
     for (const hit of [true, false]) expect(hasForbiddenWord(messageAfter({ type: 'bombLanded', hit, slot: 0, choice: 0 }, task({}))!)).toBe(false);
+  });
+});
+
+describe('helpLine (FR-033)', () => {
+  const zylinder = task({ kind: 'koerper', target: 'zylinder', rightIndexes: [2], choices: ['kugel', 'wuerfel', 'zylinder', 'quader'] });
+
+  it('is null before help and the sentence of each step after', () => {
+    expect(helpLine({ task: zylinder, taskState: null, helpStep: 0 })).toBeNull();
+    expect(helpLine({ task: zylinder, taskState: null, helpStep: 1 })).toBe('Der Zylinder ist rund wie eine Dose. Oben hat er einen Kreis.');
+    expect(helpLine({ task: zylinder, taskState: null, helpStep: 2 })).toBe('Schau, wo es blinkt.');
+    expect(helpLine({ task: zylinder, taskState: null, helpStep: 3 })).toBe('Der Pfeil zeigt auf die Antwort.');
+  });
+
+  it('gives the side hint for a view task', () => {
+    expect(helpLine({ task: task({ kind: 'malen', mode: 'bauenMalen', side: 'rechts' }), taskState: null, helpStep: 1 })).toBe('Geh in Gedanken nach rechts. Vorn ist jetzt links von dir.');
   });
 });

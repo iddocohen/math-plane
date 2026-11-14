@@ -44,7 +44,7 @@ import { HangarScreen, ParentScreen, TransferScreen, type ParentView } from './P
 import { createPlayClock, playSpeed, seedFromUrl, speedFromUrl, testFromUrl } from './playClock';
 import { RoundEnd } from './RoundEnd';
 import { RoundOverlay } from './RoundOverlay';
-import { bannerText, messageAfter } from './roundText';
+import { bannerText, helpLine, messageAfter } from './roundText';
 import { StartScreen, type ModeButton } from './StartScreen';
 import { swUpdate } from './swUpdate';
 import { useRoundState } from './useController';
@@ -198,11 +198,19 @@ export function App() {
         }
         const text = messageAfter(e, controller.state().task);
         if (text !== undefined) setMessage(text);
+        if (e.type === 'helpOpened') {
+          // The help sentence (FR-033). Opened by itself after a miss, it follows the miss line, so both stay readable.
+          const line = helpLine(controller.state());
+          if (line !== null) {
+            setMessage((before) => (e.auto && before ? `${before} ${line}` : line));
+            if (persistence.settings().sound.speech) speaker.speak(line);
+          }
+        }
         saves.report(persistence.saveRound(controller.toStored()));
       });
       return { mode, controller, rules };
     },
-    [clock, parts.seed, persistence, saves, sfx],
+    [clock, parts.seed, persistence, saves, sfx, speaker],
   );
 
   const startRound = useCallback(

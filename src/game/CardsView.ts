@@ -15,13 +15,15 @@
  * the left, and the plan card "Bauplan" on the right with the plan written so far. The selected square has a thick
  * yellow frame; squares a wrong "Fertig" marked have a thick dashed orange frame and a "?" badge. A tap on a plan
  * square selects it; the arrow keys move the frame, digits write the selected square and Backspace empties it. The
- * rules ignore digits above 4. The field with the crates is CratesView.
+ * rules ignore digits above 4. The field with the crates is CratesView. Help step 2 shows the right number of one
+ * wrong or empty square faintly in blue; step 3 shows every right number that is not written yet (research R15).
  */
 import type Phaser from 'phaser';
 import type { MixedView } from '../core/geometry/mixed';
 import type { Plan } from '../core/geometry/plan';
 import type { CubeView } from '../core/geometry/views';
 import type { RoundState } from '../core/round/RoundController';
+import type { HelpMark } from '../core/tasks/help';
 import { isCubeCard, isMixedBuilding, type AnsichtFindenTask, type BauenTask, type BauplanFindenTask } from '../core/tasks/types';
 import type { Side } from '../core/types';
 import { t } from '../i18n';
@@ -30,6 +32,7 @@ import { CSS, shade } from './palette';
 import { planInputBox, planSquareAt, sizeOf, TARGET_CARD, type Square } from './bauenLayout';
 import { drawAnyBuilding } from './BuildingView';
 import { CachedTexture } from './cachedTexture';
+import { HelpLook } from './helpLook';
 import { AIM_RISE, PLAN_CARD } from './slots';
 import { targetsViewFactory, type TargetArt } from './TargetsView';
 import type { SceneKey, TaskView, TaskViewContext, TaskViewFactory } from './taskViews';
@@ -73,7 +76,18 @@ export interface PlanGridOptions {
   selected?: { row: number; col: number } | null;
   /** Squares a wrong "Fertig" marked, as `"row,col"`: a thick dashed orange frame and a "?" badge. */
   marked?: ReadonlySet<string>;
+  /**
+   * Help (research R15): right heights drawn faintly in blue on a light blue square, null where nothing shows. In an
+   * empty square the number stands in the middle; beside a written number it stands small in the lower left corner.
+   */
+  ghost?: readonly (readonly (number | null)[])[] | null;
+  /** How strong the faint heights are, 0 to 1. */
+  ghostAlpha?: number;
 }
+
+const HELP_BLUE = '#2f7fd1';
+/** How strong the help numbers on the plan are: one number at step 2, the whole plan at step 3. */
+const PLAN_GHOST_ALPHA = { one: 0.6, full: 0.45 } as const;
 
 /**
  * A building plan: white squares with their stack numbers, "vorn" below (prototype `drawPlan`, FR-005). A square with
@@ -93,6 +107,16 @@ export function drawPlanGrid(ctx: CanvasRenderingContext2D, plan: readonly (read
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, c, c);
       const v = plan[r]![k];
+      const g = opt.ghost?.[r]?.[k];
+      if (g !== null && g !== undefined && g !== v) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(47,127,209,.14)';
+        ctx.fillRect(x + 2, y + 2, c - 4, c - 4);
+        ctx.globalAlpha = opt.ghostAlpha ?? 0.5;
+        if (v === null || v === undefined) text(ctx, String(g), x + c / 2, y + c / 2 + 2, c * 0.55, HELP_BLUE);
+        else text(ctx, String(g), x + c * 0.2, y + c * 0.8, c * 0.26, HELP_BLUE);
+        ctx.restore();
+      }
       if (v !== null && v !== undefined) text(ctx, String(v), x + c / 2, y + c / 2 + 2, c * 0.55);
     }
   }
@@ -310,12 +334,23 @@ export function drawTargetCard(ctx: CanvasRenderingContext2D, task: BauenTask): 
   drawAnyBuilding(ctx, task.target, width / 2, TARGET_CARD.groundY, cube[size], task.color);
 }
 
-/** Draws the plan card "Bauplan" with the plan written so far, as placed by `planInputBox`, at the world origin. */
-export function drawPlanInput(ctx: CanvasRenderingContext2D, look: BauenLook, marked: ReadonlySet<string>, framed: boolean): void {
+/**
+ * Draws the plan card "Bauplan" with the plan written so far, as placed by `planInputBox`, at the world origin. `help`
+ * is the plan mark of an open help step: one right height at step 2, all of them at step 3.
+ */
+export function drawPlanInput(ctx: CanvasRenderingContext2D, look: BauenLook, marked: ReadonlySet<string>, framed: boolean, help: HelpMark | null = null): void {
   const size = sizeOf(look.planInput as number[][]);
   const box = planInputBox(size);
   drawCard(ctx, box.x, box.y, box.width, box.height, t().round.planCard);
-  drawPlanGrid(ctx, look.planInput, box.x0, box.y0, box.c, { selected: framed ? look.selected : null, marked });
+  const ghost = help?.type === 'plan' ? help.heights : null;
+  // One number alone (step 2) shows a little stronger than the whole plan (step 3), which stays faint.
+  const full = ghost !== null && ghost.every((row) => row.every((h) => h !== null));
+  drawPlanGrid(ctx, look.planInput, box.x0, box.y0, box.c, {
+    selected: framed ? look.selected : null,
+    marked,
+    ghost,
+    ghostAlpha: full ? PLAN_GHOST_ALPHA.full : PLAN_GHOST_ALPHA.one,
+  });
 }
 
 /** The plan card's texture: the right part of the world, wide enough for a 3×3 plan. */
@@ -327,6 +362,7 @@ class BauenCardsView implements TaskView {
   private readonly plan: CachedTexture;
   private readonly planImage: Phaser.GameObjects.Image;
   private state: RoundState | null = null;
+  private readonly help = new HelpLook();
   private readonly onPointer: (p: Phaser.Input.Pointer) => void;
 
   constructor(private readonly ctx: TaskViewContext) {
@@ -347,9 +383,10 @@ class BauenCardsView implements TaskView {
     this.target.draw(`${task.id}`, (g) => drawTargetCard(g, task));
     const marked = new Set(state.marked);
     const framed = frameShown(state.phase);
-    this.plan.draw(JSON.stringify([task.id, look.planInput, look.selected, state.marked, framed]), (g) => {
+    const help = this.help.of(state);
+    this.plan.draw(JSON.stringify([task.id, look.planInput, look.selected, state.marked, framed, help]), (g) => {
       g.translate(-PLAN_TEXTURE.x, -PLAN_TEXTURE.y);
-      drawPlanInput(g, look, marked, framed);
+      drawPlanInput(g, look, marked, framed, help);
     });
     this.targetImage.setVisible(true);
     this.planImage.setVisible(true);

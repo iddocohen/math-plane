@@ -40,7 +40,7 @@ checkPlan(target: Plan, input): string[];              // core/tasks/bauen.ts: w
 checkPaint(expected: CubeView, paint): string[];      // core/tasks/malen.ts: wrong squares as "row,col"
 checkRegions(task, colors): number[];                 // core/tasks/maleAn.ts: piece indexes of wrong or empty regions
 // core/tasks/help.ts
-helpFor(task, state, step): HelpView;          // R15
+helpFor(task, state, step): HelpView | null;   // R15: { step, sentence, mark } (target, plan, view or regions); null at step 0
 ```
 
 ## Round

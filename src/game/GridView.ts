@@ -15,12 +15,16 @@
  * - Squares and outlines a wrong "Fertig" marked get a thick dashed orange outline and a "?" badge (FR-024a).
  * - The marker shows on the grid only after an arrow key or Tab, and goes after a tap (as the prototype's `S.kbd`).
  * - A right "Fertig": the plane flies across trailing smoke in the building's color, or the colors of its pieces.
+ * - Help (FR-033, research R15): in "Malen" step 2 shows the view faintly in the empty squares, step 3 a little
+ *   stronger. In "Male an" step 2 puts a dot of the right color on one region; step 3 puts one on every region and
+ *   fills the empty regions faintly with their color.
  */
 import type Phaser from 'phaser';
 import type { MixedView, Outline } from '../core/geometry/mixed';
 import { hitTest } from '../core/geometry/mixed';
 import type { MaleAnState, MalenState } from '../core/round/BauenMalenRules';
 import type { RoundEvent, RoundState } from '../core/round/RoundController';
+import type { HelpMark } from '../core/tasks/help';
 import { regionPoint, regionsOf } from '../core/tasks/maleAn';
 import type { MaleAnTask, MalenTask } from '../core/tasks/types';
 import { t } from '../i18n';
@@ -29,6 +33,7 @@ import { drawAnyBuilding, eyeLabel, eyeSpot, drawEye } from './BuildingView';
 import { CachedTexture } from './cachedTexture';
 import { drawCard, frameShown, movedSquare, underLabel } from './CardsView';
 import { CELEBRATE_SMOKE_MS } from './crates';
+import { HELP_ALPHA, HelpLook } from './helpLook';
 import { dashedMark, questionBadge, type Point } from './iso';
 import { CSS } from './palette';
 import { gridBox, gridSquareAt, viewPointAt } from './paintLayout';
@@ -77,15 +82,24 @@ function squareFrame(ctx: CanvasRenderingContext2D, x: number, y: number, c: num
 }
 
 /** Draws the card of a "Malen" task: the grid with the painted squares, marks and the marker, in world units. */
-export function drawPaintGrid(ctx: CanvasRenderingContext2D, task: MalenTask, state: MalenState, marked: ReadonlySet<string>, marker: Square | null): void {
+export function drawPaintGrid(ctx: CanvasRenderingContext2D, task: MalenTask, state: MalenState, marked: ReadonlySet<string>, marker: Square | null, help: HelpMark | null = null): void {
   const { cols, rows } = gridSize(task);
   const box = gridBox(cols, rows);
   const { x0, y0, c } = box;
   drawCard(ctx, box.x, box.y, box.width, box.height, t().round.viewCard(task.side));
+  const ghost = help?.type === 'view' ? help : null;
   for (let r = 0; r < rows; r++) {
     for (let k = 0; k < cols; k++) {
-      ctx.fillStyle = state.paint[r]?.[k] ? task.color : '#fff';
+      const painted = state.paint[r]?.[k] === true;
+      ctx.fillStyle = painted ? task.color : '#fff';
       ctx.fillRect(x0 + k * c, y0 + r * c, c, c);
+      if (ghost && !painted && ghost.cells[r]?.[k]) {
+        ctx.save();
+        ctx.globalAlpha = ghost.strong ? HELP_ALPHA.answer : HELP_ALPHA.pointer;
+        ctx.fillStyle = task.color;
+        ctx.fillRect(x0 + k * c, y0 + r * c, c, c);
+        ctx.restore();
+      }
       ctx.strokeStyle = GRID_LINE;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(x0 + k * c, y0 + r * c, c, c);
@@ -144,7 +158,7 @@ function outlinePolygon(o: Outline, x0: number, y0: number, c: number, rows: num
  * Draws the card of a "Male an" task in world units: the faint grid, the outlines back to front filled with the colors
  * chosen (white while empty), the marks with their "?" badge and the marker on an outline.
  */
-export function drawRegionGrid(ctx: CanvasRenderingContext2D, task: MaleAnTask, state: MaleAnState, marked: ReadonlySet<string>, marker: number | null): void {
+export function drawRegionGrid(ctx: CanvasRenderingContext2D, task: MaleAnTask, state: MaleAnState, marked: ReadonlySet<string>, marker: number | null, help: HelpMark | null = null): void {
   const view: MixedView = task.view;
   const { cols, rows } = gridSize(task);
   const box = gridBox(cols, rows);
@@ -155,10 +169,20 @@ export function drawRegionGrid(ctx: CanvasRenderingContext2D, task: MaleAnTask, 
   ctx.strokeStyle = GRID_LINE;
   ctx.lineWidth = 1.2;
   for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) ctx.strokeRect(x0 + k * c, y0 + r * c, c, c);
+  const hints = help?.type === 'regions' ? help : null;
   for (const o of view.outlines) {
     outlinePath(ctx, o, x0, y0, c, rows);
-    ctx.fillStyle = state.regionColors[o.pieceIndex] ?? '#fff';
+    const filled = state.regionColors[o.pieceIndex] ?? null;
+    ctx.fillStyle = filled ?? '#fff';
     ctx.fill();
+    const hint = hints?.fill && filled === null ? hints.regions.find((h) => h.index === o.pieceIndex) : undefined;
+    if (hint) {
+      ctx.save();
+      ctx.globalAlpha = HELP_ALPHA.pointer;
+      ctx.fillStyle = hint.color;
+      ctx.fill();
+      ctx.restore();
+    }
     ctx.strokeStyle = CSS.ink;
     ctx.lineWidth = 3;
     ctx.stroke();
@@ -166,6 +190,22 @@ export function drawRegionGrid(ctx: CanvasRenderingContext2D, task: MaleAnTask, 
   ctx.strokeStyle = CSS.ink;
   ctx.lineWidth = 2.5;
   ctx.strokeRect(x0, y0, cols * c, rows * c);
+  for (const h of hints?.regions ?? []) {
+    const p = regionPoint(view, h.index);
+    if (!p) continue;
+    // A dot of the right color with a white ring, so it reads on any fill.
+    const r = Math.max(9, c * 0.15);
+    ctx.beginPath();
+    ctx.arc(x0 + p.x * c, y0 + (rows - p.y) * c, r, 0, Math.PI * 2);
+    ctx.fillStyle = h.color;
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = CSS.ink;
+    ctx.stroke();
+  }
   for (const id of marked) {
     const index = Number(id.slice(1));
     const o = view.outlines.find((x) => x.pieceIndex === index);
@@ -214,6 +254,7 @@ class GridView implements TaskView {
   private keyboard = false;
   /** The outline the marker goes back to from the color row. */
   private lastRegion: number | null = null;
+  private readonly help = new HelpLook();
   private readonly onPointer: (p: Phaser.Input.Pointer) => void;
 
   constructor(private readonly ctx: TaskViewContext) {
@@ -331,21 +372,22 @@ class GridView implements TaskView {
     const task = state.task;
     const marked = new Set(state.marked);
     const showMarker = this.keyboard && frameShown(state.phase);
+    const help = this.help.of(state);
     if (task.kind === 'malen') {
       const look = state.taskState as MalenState;
       const marker = showMarker ? look.selected : null;
-      this.grid.draw(JSON.stringify([task.id, look.paint, state.marked, marker]), (g) => {
+      this.grid.draw(JSON.stringify([task.id, look.paint, state.marked, marker, help]), (g) => {
         g.translate(-GRID_TEXTURE.x, -GRID_TEXTURE.y);
-        drawPaintGrid(g, task, look, marked, marker);
+        drawPaintGrid(g, task, look, marked, marker, help);
       });
       return;
     }
     const look = state.taskState as MaleAnState;
     const marker = showMarker && look.selected.row === 0 ? look.selected.col : null;
     if (look.selected.row === 0) this.lastRegion = look.selected.col;
-    this.grid.draw(JSON.stringify([task.id, look.regionColors, state.marked, marker]), (g) => {
+    this.grid.draw(JSON.stringify([task.id, look.regionColors, state.marked, marker, help]), (g) => {
       g.translate(-GRID_TEXTURE.x, -GRID_TEXTURE.y);
-      drawRegionGrid(g, task, look, marked, marker);
+      drawRegionGrid(g, task, look, marked, marker, help);
     });
   }
 

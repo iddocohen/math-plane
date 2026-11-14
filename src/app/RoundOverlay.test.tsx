@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RoundController } from '../core/round/RoundController';
 import type { ModeRules } from '../core/round/rules';
 import { defaultSettings } from '../core/settings/defaults';
@@ -15,7 +15,7 @@ function round(mode: Mode, rules: ModeRules = rulesFor(mode)) {
   return { controller, rules, state: controller.state() };
 }
 
-function show(mode: Mode, over: { test?: boolean; showClock?: boolean; rules?: ModeRules } = {}) {
+function show(mode: Mode, over: { test?: boolean; showClock?: boolean; rules?: ModeRules; numberPad?: boolean; onDone?: () => void; onSceneKey?: () => void } = {}) {
   const { controller, rules, state } = round(mode, over.rules);
   render(
     <RoundOverlay
@@ -25,11 +25,13 @@ function show(mode: Mode, over: { test?: boolean; showClock?: boolean; rules?: M
       banner="Triff den Zylinder!"
       message="Treffer!"
       test={over.test ?? false}
-      numberPad={false}
+      numberPad={over.numberPad ?? false}
       showClock={over.showClock ?? false}
       onHangar={null}
       onPause={() => {}}
       onHome={() => {}}
+      onDone={over.onDone ?? (() => {})}
+      onSceneKey={over.onSceneKey ?? (() => {})}
     />,
   );
   return screen.getByTestId('round');
@@ -85,6 +87,36 @@ describe('RoundOverlay', () => {
     expect(screen.queryByTestId('bombs')).toBeNull();
   });
 
+  it('"Fertig" goes to onDone, so the app can hold it while crates fall', () => {
+    const onDone = vi.fn();
+    show('bauenMalen', { onDone });
+    screen.getByTestId('done').click();
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the number pad during "Bauen" when it is on, with its own "Fertig" (FR-011)', () => {
+    const onDone = vi.fn();
+    const onSceneKey = vi.fn();
+    const el = show('bauenMalen', { numberPad: true, onDone, onSceneKey });
+    expect(el.getAttribute('data-kind')).toBe('bauen');
+    expect(el.getAttribute('data-number-pad')).toBe('true');
+    expect(screen.queryByTestId('done')).toBeNull();
+    const pad = screen.getByTestId('number-pad');
+    (pad.querySelector('[data-key="3"]') as HTMLButtonElement).click();
+    (pad.querySelector('[data-key="backspace"]') as HTMLButtonElement).click();
+    (pad.querySelector('[data-key="done"]') as HTMLButtonElement).click();
+    expect(onSceneKey.mock.calls).toEqual([[{ type: 'digit', digit: 3 }], [{ type: 'backspace' }]]);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no number pad in "Treffer" or when it is off', () => {
+    show('treffer', { numberPad: true });
+    expect(screen.queryByTestId('number-pad')).toBeNull();
+    cleanup();
+    show('bauenMalen', { numberPad: false });
+    expect(screen.queryByTestId('number-pad')).toBeNull();
+  });
+
   it('shows the clock only when "Uhr zeigen" is on', () => {
     show('treffer');
     expect(screen.queryByTestId('clock')).toBeNull();
@@ -95,7 +127,7 @@ describe('RoundOverlay', () => {
 
   it('the yellow "?" asks the controller for help', () => {
     const { controller, rules, state } = round('treffer');
-    render(<RoundOverlay controller={controller} state={state} rules={rules} banner="" message={null} test={false} numberPad={false} showClock={false} onHangar={null} onPause={() => {}} onHome={() => {}} />);
+    render(<RoundOverlay controller={controller} state={state} rules={rules} banner="" message={null} test={false} numberPad={false} showClock={false} onHangar={null} onPause={() => {}} onHome={() => {}} onDone={() => {}} onSceneKey={() => {}} />);
     screen.getByTestId('help').click();
     expect(controller.state().helpStep).toBe(1);
   });

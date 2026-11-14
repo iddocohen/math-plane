@@ -3,7 +3,7 @@ import { hasForbiddenWord } from '../../i18n';
 import { createRng } from '../rng';
 import { defaultSettings } from '../settings/defaults';
 import { checkBomb } from './check';
-import { generateTask } from './generate';
+import { generateTrefferTask } from './generate';
 import type { FormenTask, KoerperTask } from './types';
 
 const base = { id: '1-1', seed: 1, mode: 'treffer' as const, level: 1 as const };
@@ -46,7 +46,7 @@ describe('checkBomb', () => {
   it('every miss line over generated tasks is kind (FR-041)', () => {
     for (let seed = 1; seed <= 100; seed++) {
       for (const kind of ['koerper', 'formen'] as const) {
-        const task = generateTask({ content: { kind, level: 1 }, settings: defaultSettings(), rng: createRng(seed), id: 'x', seed });
+        const task = generateTrefferTask({ content: { kind, level: 1 }, settings: defaultSettings(), rng: createRng(seed), id: 'x', seed });
         task.choices.forEach((_, i) => {
           const r = checkBomb(task, i);
           expect(r.hit).toBe(task.rightIndexes.includes(i));

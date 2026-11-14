@@ -96,8 +96,20 @@ export interface AnsichtFindenTask extends TaskBase {
 /** Every "Treffer" task. */
 export type TrefferTask = KoerperTask | FormenTask | BauplanFindenTask | AnsichtFindenTask;
 
-/** Every task the generator makes so far. */
-export type Task = TrefferTask;
+/**
+ * "Bauen" (FR-021): the card "So soll es aussehen" shows the building over `target`; the child writes its plan. The
+ * building is readable (research R4), so every stack can be counted in the drawing.
+ */
+export interface BauenTask extends TaskBase {
+  kind: 'bauen';
+  mode: 'bauenMalen';
+  target: Plan;
+  /** The color of the building on the card and on the field, `#rrggbb`. */
+  color: string;
+}
+
+/** Every task the generator makes so far. "Malen" and "Male an" (US4) join here. */
+export type Task = TrefferTask | BauenTask;
 
 /** True for a task with choices to bomb. */
 export function isTrefferTask(task: TaskBase): task is TrefferTask {

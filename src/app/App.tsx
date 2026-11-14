@@ -284,6 +284,13 @@ export function App() {
     gameRef.current?.key(k);
   }, []);
 
+  // "Fertig" goes through the scene, which holds it while crates still fall (RoundScene `done`).
+  const onDone = useCallback(() => {
+    if (!round) return;
+    if (gameRef.current) gameRef.current.done();
+    else round.controller.done();
+  }, [round]);
+
   const openHangar = useCallback(() => {
     if (round && round.controller.state().phase !== 'ended') round.controller.pause();
     setOverlay('hangar');
@@ -338,9 +345,10 @@ export function App() {
       else if (action.type === 'again') again();
       else if (action.type === 'pause') pause('pause');
       else if (action.type === 'resume') resume();
+      else if (action.type === 'done') onDone();
       else if (round) applyRoundAction(round.controller, onSceneKey, action);
     },
-    [again, closeOverlay, onSceneKey, openHangar, pause, resume, round, startRound],
+    [again, closeOverlay, onDone, onSceneKey, openHangar, pause, resume, round, startRound],
   );
 
   useKeyboard({
@@ -382,6 +390,8 @@ export function App() {
           onHangar={settings.hangar ? openHangar : null}
           onPause={() => pause('pause')}
           onHome={() => pause('quit')}
+          onDone={onDone}
+          onSceneKey={onSceneKey}
         />
       )}
       {round !== null && pauseKind !== null && overlay === null && <PauseScreen kind={pauseKind} onResume={resume} onHome={goStart} />}
@@ -426,10 +436,12 @@ interface RoundScreenProps {
   onHangar: (() => void) | null;
   onPause: () => void;
   onHome: () => void;
+  onDone: () => void;
+  onSceneKey: (k: SceneKey) => void;
 }
 
 /** The round: the canvas under the overlay. Its own component, so a new state re-renders only the round. */
-function RoundScreen({ round, parentRef, message, test, numberPad, showClock, onHangar, onPause, onHome }: RoundScreenProps) {
+function RoundScreen({ round, parentRef, message, test, numberPad, showClock, onHangar, onPause, onHome, onDone, onSceneKey }: RoundScreenProps) {
   const state = useRoundState(round.controller);
   return (
     <main className="round">
@@ -446,6 +458,8 @@ function RoundScreen({ round, parentRef, message, test, numberPad, showClock, on
         onHangar={onHangar}
         onPause={onPause}
         onHome={onHome}
+        onDone={onDone}
+        onSceneKey={onSceneKey}
         gear={<Gear />}
       />
     </main>

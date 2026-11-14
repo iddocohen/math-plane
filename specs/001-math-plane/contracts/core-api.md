@@ -53,6 +53,7 @@ class RoundController {
   subscribe(fn: (e: RoundEvent) => void): () => void;
   tapChoice(slot: number): void;       // ignored outside 'aim'
   landBomb(): void;                    // the view calls it when the bomb animation ends
+  select(row, col): void;              // "Bauen": select a plan square (tap or arrow keys, FR-024b)
   typeHeight(row, col, h): void; clearHeight(row, col): void;
   togglePaint(row, col): void;
   pickColor(color): void; fillRegion(index): void;
@@ -63,7 +64,7 @@ class RoundController {
 }
 ```
 
-Events: `passStarted`, `bombLanded {hit, slot}`, `slotsShuffled`, `cratesChanged {row, col, from, to}`, `checked {right, marked}`, `helpOpened {step}`, `taskStarted`, `levelUp {name}`, `starsAwarded {n}`, `roundEnded {summary}`.
+Events: `passStarted`, `bombLanded {hit, slot}`, `slotsShuffled`, `cratesChanged {row, col, from, to}`, `checked {right, marked}`, `inputApplied` (after every input that changed the task state), `helpOpened {step}`, `taskStarted`, `levelUp {name}`, `starsAwarded {n}`, `roundEnded {summary}`.
 
 ## Learning, storage, rewards
 

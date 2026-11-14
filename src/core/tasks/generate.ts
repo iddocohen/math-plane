@@ -11,6 +11,7 @@
  *   building and 2 variants stand on the field.
  * - "Ansicht finden" (FR-019, research R7): one building, a cube building or, where the content allows, a building
  *   with mixed pieces half of the time; the side asked from the content's sides; the right view card and 2 wrong ones.
+ * - "Bauen" (FR-021): a readable cube building within the content's plan limits (bauen.ts).
  */
 import { generateMixed, mirrorMixedView, mixedView, withoutPiece, carriesOther, type MixedBuilding } from '../geometry/mixed';
 import { FALLBACK_PLANS, GENERATE_TRIES, generateCubePlan, hasVariants, meetsRules, plansEqual, planVariants, type Plan, type PlanLimits } from '../geometry/plan';
@@ -18,8 +19,9 @@ import { cubeView, mirrorCubeView, oneColumnChanged } from '../geometry/views';
 import type { Rng } from '../rng';
 import type { TaskRequest } from '../round/rules';
 import { FLAT_SHAPES, SIDES, SOLIDS, type Level, type Side } from '../types';
+import { generateBauen } from './bauen';
 import { PIECE_COLORS } from './colors';
-import type { AnsichtFindenTask, BauplanFindenTask, FormenTask, KoerperTask, ShapeLook, Task, ViewCard } from './types';
+import { isTrefferTask, type AnsichtFindenTask, type BauplanFindenTask, type FormenTask, type KoerperTask, type ShapeLook, type Task, type TrefferTask, type ViewCard } from './types';
 
 /** How many choices stand on the field in "Körper finden" and "Formen finden". */
 export const CHOICE_COUNT = 4;
@@ -175,8 +177,16 @@ export function generateTask(request: TaskRequest): Task {
     case 'ansichtFinden':
       return generateAnsichtFinden(rng, ident, content);
     case 'bauen':
+      return generateBauen(rng, ident, content.plan);
     case 'malen':
     case 'maleAn':
       throw new RangeError(`generateTask: no generator for ${content.kind} yet`);
   }
+}
+
+/** The task of a "Treffer" content; throws for a kind of "Bauen und Malen". */
+export function generateTrefferTask(request: TaskRequest): TrefferTask {
+  const task = generateTask(request);
+  if (!isTrefferTask(task)) throw new RangeError(`generateTrefferTask: ${request.content.kind} is no "Treffer" kind`);
+  return task;
 }

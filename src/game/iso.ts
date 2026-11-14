@@ -196,9 +196,9 @@ export function questionBadge(ctx: CanvasRenderingContext2D, x: number, y: numbe
 export interface BuildingOptions {
   /** Draw the ground squares as tiles, as the build field does; otherwise a soft shadow. */
   tiles?: boolean;
-  /** The selected square: a yellow tile. */
+  /** The selected square: a yellow tile, and a thick yellow frame on the top of its stack (on the tile when empty). */
   selected?: { row: number; col: number } | null;
-  /** Squares a wrong "Fertig" marked, as `"row,col"`: an orange tile, a dashed outline and a "?" badge. */
+  /** Squares a wrong "Fertig" marked, as `"row,col"`: an orange tile, a dashed outline around the tower and a "?" badge. */
   marked?: ReadonlySet<string>;
   /** Crates falling onto or standing on the stacks. */
   crates?: readonly Crate[];
@@ -239,15 +239,45 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, plan: readonly (read
       for (const c of opt.crates ?? []) if (c.col === col && c.row === row) drawCrate(ctx, P, c);
     }
   }
+  const sel = opt.selected;
+  if (opt.tiles && sel && sel.row >= 0 && sel.row < rows && sel.col >= 0 && sel.col < cols) {
+    // The thick yellow frame on the top of the selected stack, or on its tile when it has no cube.
+    const h = plan[sel.row]![sel.col]!;
+    const frame = (z: number) => [P(sel.col, sel.row, z), P(sel.col + 1, sel.row, z), P(sel.col + 1, sel.row + 1, z), P(sel.col, sel.row + 1, z)];
+    selectedFrame(ctx, frame(h));
+  }
   for (const id of marked) {
     const [row, col] = id.split(',').map(Number) as [number, number];
     if (!(row >= 0 && row < rows && col >= 0 && col < cols)) continue;
     const h = plan[row]![col]!;
-    dashedMark(ctx, [P(col, row, h), P(col + 1, row, h), P(col + 1, row + 1, h), P(col, row + 1, h)]);
+    dashedMark(ctx, towerOutline(P, row, col, h));
     const [bx, by] = P(col + 0.5, row + 0.5, h);
     questionBadge(ctx, bx, by - s * 0.6);
   }
   return P;
+}
+
+/** The thick yellow frame of a selected square (FR-024a). */
+export function selectedFrame(ctx: CanvasRenderingContext2D, pts: readonly Point[], lw = 5): void {
+  ctx.save();
+  ctx.strokeStyle = CSS.gold;
+  ctx.lineWidth = lw;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(pts[0]![0], pts[0]![1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]![0], pts[i]![1]);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * The outline of the tower on (`row`, `col`), `h` cubes high, as drawn with `P`: the hexagon around its top, right and
+ * front faces, or the ground square when it has no cube.
+ */
+export function towerOutline(P: Projector, row: number, col: number, h: number): Point[] {
+  if (h <= 0) return [P(col, row, 0), P(col + 1, row, 0), P(col + 1, row + 1, 0), P(col, row + 1, 0)];
+  return [P(col, row, h), P(col + 1, row, h), P(col + 1, row, 0), P(col + 1, row + 1, 0), P(col, row + 1, 0), P(col, row + 1, h)];
 }
 
 /**

@@ -11,7 +11,8 @@
  *   pass with its release point and lands the bomb. Whenever no view lands it, `controller.tick()` does after the
  *   fallback time (research R18).
  * - After a miss (`feedback`) or a solved task (`celebrate`), the scene waits NEXT_DELAY_MS of play time and until no
- *   view is busy, then calls `next()`. A right "Fertig" throws confetti.
+ *   view is busy, then calls `next()`. A right "Fertig" throws confetti. A "Fertig" while a view is busy (crates
+ *   still falling in "Bauen") waits until it is done (`done()`).
  * - While the scene runs, the canvas carries `data-scene="round"`, so end-to-end tests wait for the scene before they
  *   press keys that go to it.
  */
@@ -50,6 +51,8 @@ export class RoundScene extends Phaser.Scene {
   private views: Array<{ factory: TaskViewFactory; view: TaskView }> = [];
   private playMs = 0;
   private nextAt: number | null = null;
+  /** A "Fertig" held until no view is busy. */
+  private doneWaiting = false;
   private state!: RoundState;
 
   constructor(controller: RoundController, options: RoundSceneOptions) {
@@ -65,6 +68,7 @@ export class RoundScene extends Phaser.Scene {
   create(): void {
     this.playMs = 0;
     this.nextAt = null;
+    this.doneWaiting = false;
     this.sky = new SkyView(this);
     this.effects = new EffectsView(this);
     this.plane = new PlaneView(this, this.effects.trail, this.options.look?.() ?? DEFAULT_LOOK);
@@ -97,6 +101,10 @@ export class RoundScene extends Phaser.Scene {
     this.plane.update(ms);
     this.effects.update(ms);
     for (const { view } of this.current()) view.update?.(ms, this.state);
+    if (this.doneWaiting && !this.current().some(({ view }) => view.busy?.(this.state.phase))) {
+      this.doneWaiting = false;
+      this.controller.done();
+    }
     if (this.nextAt !== null && this.playMs >= this.nextAt && !this.current().some(({ view }) => view.busy?.(this.state.phase))) {
       this.nextAt = null;
       this.controller.next();
@@ -108,6 +116,14 @@ export class RoundScene extends Phaser.Scene {
     let used = false;
     for (const { view } of this.current()) used = (view.key?.(k, this.state) ?? false) || used;
     return used;
+  }
+
+  /**
+   * "Fertig": checks at once, or, while a view is still busy (crates falling), once it is done, as the prototype does.
+   */
+  done(): void {
+    if (this.current().some(({ view }) => view.busy?.(this.state.phase))) this.doneWaiting = true;
+    else this.controller.done();
   }
 
   /** Shows the look chosen in the Hangar at once. */
@@ -126,6 +142,7 @@ export class RoundScene extends Phaser.Scene {
     // The plane starts the pass before the views see it, so a view can restart it with a release point.
     if (e.type === 'passStarted') this.plane.startPass(null);
     for (const { view } of this.current()) view.event?.(e, this.state);
+    if (e.type === 'taskStarted') this.doneWaiting = false;
     if (e.type === 'checked' && e.right) this.effects.celebrate();
     else if (e.type === 'phaseChanged') this.waitIfDone(e.phase);
     if (e.type === 'taskStarted' && before.task.kind !== this.state.task.kind) {

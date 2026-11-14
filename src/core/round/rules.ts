@@ -62,6 +62,7 @@ export interface TrefferRules<T extends TaskBase = TaskBase, S = unknown> extend
 
 /** An input of "Bauen und Malen" (FR-020 to FR-023). Later tasks may add inputs here. */
 export type BauenMalenInput =
+  | { type: 'select'; row: number; col: number }
   | { type: 'typeHeight'; row: number; col: number; height: number }
   | { type: 'clearHeight'; row: number; col: number }
   | { type: 'togglePaint'; row: number; col: number }

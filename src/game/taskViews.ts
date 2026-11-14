@@ -1,10 +1,9 @@
 /**
  * How the views of the task kinds plug into the round scene (plan "Controller decides, view animates"). Later tasks add
- * their views here (CratesView in T046, GridView in T053) by adding a factory to
- * TASK_VIEWS; RoundScene and App stay as they are. "Treffer" choices use TargetsView (SolidsView, ShapesView) and the
+ * their views here (GridView in T053) by adding a factory to TASK_VIEWS; RoundScene and App stay as they are. "Treffer" choices use TargetsView (SolidsView, ShapesView) and the
  * bomb of every "Treffer" kind falls in BombView. "Bauplan finden" shows the plan cards (CardsView) and its buildings as
  * targets (BuildingView); "Ansicht finden" shows its building with the eye (BuildingView) and its view cards as targets
- * (CardsView).
+ * (CardsView). "Bauen" shows its cards (CardsView) and the field with the crates (CratesView).
  *
  * - A view gets a `TaskViewContext`: the scene, the plane, the effects, and `input`, the small part of the
  *   RoundController a view may call. Tap areas call `input` (for example `tapChoice(slot)` on a solid, `typeHeight` from
@@ -20,7 +19,8 @@ import type { Phase, RoundEvent, RoundState } from '../core/round/RoundControlle
 import type { TaskKind } from '../core/types';
 import { bombView } from './BombView';
 import { buildingTargetsView, buildingView } from './BuildingView';
-import { planCardsView, viewCardsView } from './CardsView';
+import { bauenCardsView, planCardsView, viewCardsView } from './CardsView';
+import { cratesView } from './CratesView';
 import type { BombStyle } from './effects';
 import type { EffectsView } from './EffectsView';
 import type { PlaneView } from './PlaneView';
@@ -31,6 +31,7 @@ import { solidsView } from './SolidsView';
 export interface RoundInput {
   tapChoice(slot: number): void;
   landBomb(): void;
+  select(row: number, col: number): void;
   typeHeight(row: number, col: number, height: number): void;
   clearHeight(row: number, col: number): void;
   togglePaint(row: number, col: number): void;
@@ -72,8 +73,8 @@ export interface TaskView {
   /** One frame of play time. */
   update?(ms: number, state: RoundState): void;
   /**
-   * True while the view still animates the end of a hit, a miss or a solved task, so the scene waits before it calls
-   * `next()`.
+   * True while the view still animates the end of a hit, a miss or a solved task, or crates still fall, so the scene
+   * waits before it calls `next()` and holds a "Fertig" until the view is done.
    */
   busy?(phase: Phase): boolean;
   /** Hides everything the view shows; the task kind moved on to another view. */
@@ -88,4 +89,14 @@ export interface TaskViewFactory {
 }
 
 /** The views of the task kinds. */
-export const TASK_VIEWS: TaskViewFactory[] = [solidsView, shapesView, planCardsView, buildingTargetsView, buildingView, viewCardsView, bombView];
+export const TASK_VIEWS: TaskViewFactory[] = [
+  solidsView,
+  shapesView,
+  planCardsView,
+  buildingTargetsView,
+  buildingView,
+  viewCardsView,
+  bombView,
+  bauenCardsView,
+  cratesView,
+];

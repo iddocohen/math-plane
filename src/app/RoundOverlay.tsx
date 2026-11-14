@@ -4,8 +4,12 @@
  * Start"), the banner (`data-testid="banner"`), the yellow "?" help button, the Hangar icon (with the Hangar on), the
  * pause button, the fullscreen button and the gear. Below the banner is the message line (`data-testid="message"`).
  * At the bottom: the bomb bay in "Treffer" (`data-testid="bombs"`) or the task counter "Aufgabe 2 von 5", the clock
- * when "Uhr zeigen" is on, and "Fertig" (`data-testid="done"`) in "Bauen und Malen". `children` is the place for the
- * number pad (T048) and the color row (T053).
+ * when "Uhr zeigen" is on, and "Fertig" (`data-testid="done"`) in "Bauen und Malen". During a "Bauen" task the number
+ * pad (FR-011) shows when `numberPad` is true; it has its own "Fertig" key, so the "Fertig" button then steps aside.
+ * `children` is the place for the color row (T053).
+ *
+ * "Fertig" calls `onDone`, so the app can hold it while crates still fall (RoundScene `done`); pad digits and ⌫ go
+ * to `onSceneKey` like the keyboard's keys.
  *
  * `data-testid="round"` carries the state for tests (`roundData`): `data-mode`, `data-phase`, `data-kind`,
  * `data-level`, `data-side`, `data-help`, `data-misses`, `data-bombs-left`, `data-hits`, `data-tasks-done`,
@@ -16,8 +20,10 @@
 import type { ReactNode } from 'react';
 import type { RoundController, RoundState } from '../core/round/RoundController';
 import type { ModeRules } from '../core/round/rules';
+import type { SceneKey } from '../game/taskViews';
 import { t } from '../i18n';
 import { noFocus } from './noFocus';
+import { NumberPad } from './NumberPad';
 import { requestFullscreen } from './StartScreen';
 import { useElapsedMs } from './useController';
 
@@ -79,12 +85,18 @@ interface Props {
   onHangar: (() => void) | null;
   onPause: () => void;
   onHome: () => void;
+  /** "Fertig" from the button, the pad or F. */
+  onDone: () => void;
+  /** A pad key for the scene, as the keyboard sends it. */
+  onSceneKey: (k: SceneKey) => void;
   gear?: ReactNode;
   children?: ReactNode;
 }
 
-export function RoundOverlay({ controller, state, rules, banner, message, test, numberPad, showClock, onHangar, onPause, onHome, gear, children }: Props) {
+export function RoundOverlay({ controller, state, rules, banner, message, test, numberPad, showClock, onHangar, onPause, onHome, onDone, onSceneKey, gear, children }: Props) {
   const text = t().round;
+  const pad = numberPad && state.task.kind === 'bauen';
+  const writing = state.phase === 'aim' || state.phase === 'check';
   const canFullscreen = document.fullscreenEnabled === true;
   const taskNumber = Math.min(state.tasksDone + 1, state.tasksTotal);
   return (
@@ -128,8 +140,16 @@ export function RoundOverlay({ controller, state, rules, banner, message, test, 
         )}
         {showClock && <Clock controller={controller} />}
         {children}
-        {state.mode === 'bauenMalen' && (
-          <button type="button" className="done-button" data-testid="done" aria-keyshortcuts="F" {...noFocus} onClick={() => controller.done()}>
+        {pad && (
+          <NumberPad
+            disabled={!writing}
+            onDigit={(digit) => onSceneKey({ type: 'digit', digit })}
+            onBackspace={() => onSceneKey({ type: 'backspace' })}
+            onDone={onDone}
+          />
+        )}
+        {state.mode === 'bauenMalen' && !pad && (
+          <button type="button" className="done-button" data-testid="done" aria-keyshortcuts="F" {...noFocus} onClick={onDone}>
             {text.done}
           </button>
         )}

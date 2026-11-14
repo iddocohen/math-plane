@@ -252,7 +252,8 @@ describe('RoundController in "Bauen und Malen"', () => {
     const { round, events } = bauen();
     round.typeHeight(0, 1, 2);
     expect(round.state().taskState.values).toEqual([0, 2]);
-    expect(events).toEqual([{ type: 'cratesChanged', row: 0, col: 1, from: 0, to: 2 }]);
+    // The crates first, then the note that the task state changed, so views and the overlay redraw.
+    expect(events).toEqual([{ type: 'cratesChanged', row: 0, col: 1, from: 0, to: 2 }, { type: 'inputApplied' }]);
   });
 
   it('a wrong "Fertig" marks, counts a miss and stays on the task; an input clears its mark', () => {

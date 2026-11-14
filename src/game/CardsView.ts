@@ -10,20 +10,29 @@
  *
  * `drawPlanGrid` and `drawViewGrid` take a box in world units, so "Bauen", "Malen" and "Male an" (US3, US4) can draw
  * their plan and paint grids with them.
+ *
+ * "Bauen" (FR-021, FR-024a, FR-024b, `bauenCardsView`): the card "So soll es aussehen" with the finished building on
+ * the left, and the plan card "Bauplan" on the right with the plan written so far. The selected square has a thick
+ * yellow frame; squares a wrong "Fertig" marked have a thick dashed orange frame and a "?" badge. A tap on a plan
+ * square selects it; the arrow keys move the frame, digits write the selected square and Backspace empties it. The
+ * rules ignore digits above 4. The field with the crates is CratesView.
  */
 import type Phaser from 'phaser';
 import type { MixedView } from '../core/geometry/mixed';
 import type { Plan } from '../core/geometry/plan';
 import type { CubeView } from '../core/geometry/views';
 import type { RoundState } from '../core/round/RoundController';
-import { isCubeCard, isMixedBuilding, type AnsichtFindenTask, type BauplanFindenTask } from '../core/tasks/types';
+import { isCubeCard, isMixedBuilding, type AnsichtFindenTask, type BauenTask, type BauplanFindenTask } from '../core/tasks/types';
 import type { Side } from '../core/types';
 import { t } from '../i18n';
+import { dashedMark, questionBadge } from './iso';
 import { CSS, shade } from './palette';
+import { planInputBox, planSquareAt, sizeOf, TARGET_CARD, type Square } from './bauenLayout';
+import { drawAnyBuilding } from './BuildingView';
 import { CachedTexture } from './cachedTexture';
 import { AIM_RISE, PLAN_CARD } from './slots';
 import { targetsViewFactory, type TargetArt } from './TargetsView';
-import type { TaskView, TaskViewContext, TaskViewFactory } from './taskViews';
+import type { SceneKey, TaskView, TaskViewContext, TaskViewFactory } from './taskViews';
 import { DEPTH } from './world';
 
 const FONT = "Fredoka, 'Trebuchet MS', sans-serif";
@@ -58,21 +67,59 @@ export function drawCard(ctx: CanvasRenderingContext2D, x: number, y: number, w:
   if (title) text(ctx, title, x + w / 2, y + 22, 20);
 }
 
-/** A building plan: white squares with their stack numbers, "vorn" below (prototype `drawPlan`, FR-005). */
-export function drawPlanGrid(ctx: CanvasRenderingContext2D, plan: Plan, x0: number, y0: number, c: number): void {
+/** What a plan grid shows besides the numbers ("Bauen", FR-024a). */
+export interface PlanGridOptions {
+  /** The selected square: a thick yellow frame. */
+  selected?: { row: number; col: number } | null;
+  /** Squares a wrong "Fertig" marked, as `"row,col"`: a thick dashed orange frame and a "?" badge. */
+  marked?: ReadonlySet<string>;
+}
+
+/**
+ * A building plan: white squares with their stack numbers, "vorn" below (prototype `drawPlan`, FR-005). A square with
+ * null stays empty, as a plan the child has not written yet.
+ */
+export function drawPlanGrid(ctx: CanvasRenderingContext2D, plan: readonly (readonly (number | null)[])[], x0: number, y0: number, c: number, opt: PlanGridOptions = {}): void {
   const rows = plan.length;
   const cols = plan[0]?.length ?? 0;
   for (let r = 0; r < rows; r++) {
     for (let k = 0; k < cols; k++) {
       const x = x0 + k * c;
       const y = y0 + r * c;
-      ctx.fillStyle = '#fff';
+      const selected = opt.selected?.row === r && opt.selected.col === k;
+      ctx.fillStyle = selected ? '#fff3b0' : '#fff';
       ctx.fillRect(x, y, c, c);
       ctx.strokeStyle = CSS.ink;
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, c, c);
-      text(ctx, String(plan[r]![k]), x + c / 2, y + c / 2 + 2, c * 0.55);
+      const v = plan[r]![k];
+      if (v !== null && v !== undefined) text(ctx, String(v), x + c / 2, y + c / 2 + 2, c * 0.55);
     }
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < cols; k++) {
+      if (!opt.marked?.has(`${r},${k}`)) continue;
+      const x = x0 + k * c;
+      const y = y0 + r * c;
+      const inset = Math.max(5, c * 0.08);
+      dashedMark(ctx, [[x + inset, y + inset], [x + c - inset, y + inset], [x + c - inset, y + c - inset], [x + inset, y + c - inset]], 5);
+      questionBadge(ctx, x + c - inset - 2, y + inset + 2, Math.max(11, c * 0.13));
+    }
+  }
+  const sel = opt.selected;
+  if (sel && sel.row >= 0 && sel.row < rows && sel.col >= 0 && sel.col < cols) {
+    // Drawn last and wider than the grid lines, so the frame reads over its neighbors' lines.
+    const x = x0 + sel.col * c;
+    const y = y0 + sel.row * c;
+    ctx.save();
+    ctx.strokeStyle = CSS.gold;
+    ctx.lineWidth = 8;
+    ctx.lineJoin = 'round';
+    ctx.strokeRect(x + 1, y + 1, c - 2, c - 2);
+    ctx.strokeStyle = '#b8901a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 3, y - 3, c + 6, c + 6);
+    ctx.restore();
   }
   text(ctx, t().round.front, x0 + (cols * c) / 2, y0 + rows * c + 18, 17);
 }
@@ -230,3 +277,125 @@ class PlanCardsView implements TaskView {
 }
 
 export const planCardsView: TaskViewFactory = { kinds: ['bauplanFinden'], create: (ctx) => new PlanCardsView(ctx) };
+
+// ---------------------------------------------------------------- "Bauen": target card and plan card
+
+/** The state of a "Bauen" task as the cards read it (core/round/BauenMalenRules.ts `BauenState`). */
+interface BauenLook {
+  planInput: (number | null)[][];
+  selected: Square;
+}
+
+function bauenLook(state: RoundState): BauenLook | null {
+  const s = state.taskState as Partial<BauenLook> | null;
+  return s && Array.isArray(s.planInput) && s.selected ? (s as BauenLook) : null;
+}
+
+/** The frame shows only while the child writes, not while the task is solved (prototype `S.busy`). */
+export function frameShown(phase: RoundState['phase']): boolean {
+  return phase === 'aim' || phase === 'check' || phase === 'paused';
+}
+
+/** The square the arrow keys move to from `from`, kept inside a plan of `size`. */
+export function movedSquare(from: Square, dx: number, dy: number, size: number): Square {
+  const clamp = (v: number) => Math.max(0, Math.min(size - 1, v));
+  return { row: clamp(from.row + dy), col: clamp(from.col + dx) };
+}
+
+/** Draws the card "So soll es aussehen" with the finished building, its top left corner at (0, 0). */
+export function drawTargetCard(ctx: CanvasRenderingContext2D, task: BauenTask): void {
+  const { width, height, cube } = TARGET_CARD;
+  drawCard(ctx, 0, 0, width, height, t().round.target);
+  const size = sizeOf(task.target);
+  drawAnyBuilding(ctx, task.target, width / 2, TARGET_CARD.groundY, cube[size], task.color);
+}
+
+/** Draws the plan card "Bauplan" with the plan written so far, as placed by `planInputBox`, at the world origin. */
+export function drawPlanInput(ctx: CanvasRenderingContext2D, look: BauenLook, marked: ReadonlySet<string>, framed: boolean): void {
+  const size = sizeOf(look.planInput as number[][]);
+  const box = planInputBox(size);
+  drawCard(ctx, box.x, box.y, box.width, box.height, t().round.planCard);
+  drawPlanGrid(ctx, look.planInput, box.x0, box.y0, box.c, { selected: framed ? look.selected : null, marked });
+}
+
+/** The plan card's texture: the right part of the world, wide enough for a 3×3 plan. */
+const PLAN_TEXTURE = { x: 960, y: 380, width: 540, height: 480 } as const;
+
+class BauenCardsView implements TaskView {
+  private readonly target: CachedTexture;
+  private readonly targetImage: Phaser.GameObjects.Image;
+  private readonly plan: CachedTexture;
+  private readonly planImage: Phaser.GameObjects.Image;
+  private state: RoundState | null = null;
+  private readonly onPointer: (p: Phaser.Input.Pointer) => void;
+
+  constructor(private readonly ctx: TaskViewContext) {
+    const { scene } = ctx;
+    this.target = new CachedTexture(scene, 'bauen-target', TARGET_CARD.width + 10, TARGET_CARD.height + 10, 2);
+    this.targetImage = scene.add.image(TARGET_CARD.x, TARGET_CARD.y, this.target.key).setScale(this.target.scale).setOrigin(0, 0).setDepth(DEPTH.targets - 1).setVisible(false);
+    this.plan = new CachedTexture(scene, 'bauen-plan', PLAN_TEXTURE.width, PLAN_TEXTURE.height, 2);
+    this.planImage = scene.add.image(PLAN_TEXTURE.x, PLAN_TEXTURE.y, this.plan.key).setScale(this.plan.scale).setOrigin(0, 0).setDepth(DEPTH.targets - 1).setVisible(false);
+    this.onPointer = (p) => this.tap(p.worldX, p.worldY);
+    scene.input.on('pointerdown', this.onPointer);
+  }
+
+  show(state: RoundState): void {
+    this.state = state;
+    const task = state.task as BauenTask;
+    const look = bauenLook(state);
+    if (look === null) return this.hide();
+    this.target.draw(`${task.id}`, (g) => drawTargetCard(g, task));
+    const marked = new Set(state.marked);
+    const framed = frameShown(state.phase);
+    this.plan.draw(JSON.stringify([task.id, look.planInput, look.selected, state.marked, framed]), (g) => {
+      g.translate(-PLAN_TEXTURE.x, -PLAN_TEXTURE.y);
+      drawPlanInput(g, look, marked, framed);
+    });
+    this.targetImage.setVisible(true);
+    this.planImage.setVisible(true);
+  }
+
+  key(k: SceneKey, state: RoundState): boolean {
+    const look = bauenLook(state);
+    if (look === null) return false;
+    const { row, col } = look.selected;
+    const input = this.ctx.input;
+    switch (k.type) {
+      case 'arrow': {
+        const to = movedSquare(look.selected, k.dx, k.dy, look.planInput.length);
+        input.select(to.row, to.col);
+        return true;
+      }
+      case 'digit':
+        input.typeHeight(row, col, k.digit);
+        return true;
+      case 'backspace':
+        input.clearHeight(row, col);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  hide(): void {
+    this.state = null;
+    this.targetImage.setVisible(false);
+    this.planImage.setVisible(false);
+  }
+
+  destroy(): void {
+    this.ctx.scene.input.off('pointerdown', this.onPointer);
+    this.targetImage.destroy();
+    this.planImage.destroy();
+  }
+
+  /** A tap on a plan square selects it (FR-024b). */
+  private tap(x: number, y: number): void {
+    const look = this.state ? bauenLook(this.state) : null;
+    if (look === null) return;
+    const square = planSquareAt(sizeOf(look.planInput as number[][]), x, y);
+    if (square) this.ctx.input.select(square.row, square.col);
+  }
+}
+
+export const bauenCardsView: TaskViewFactory = { kinds: ['bauen'], create: (ctx) => new BauenCardsView(ctx) };

@@ -27,6 +27,8 @@ export interface GameHandle {
   leave(): void;
   /** A key for the scene's task views; true when one used it. */
   key(k: SceneKey): boolean;
+  /** "Fertig": the scene holds it while crates still fall (RoundScene `done`). */
+  done(): void;
   /** Shows the look chosen in the Hangar at once. */
   showLook(look: PlaneLook): void;
   destroy(): void;
@@ -104,6 +106,10 @@ export function createGame(parent: HTMLElement, controller: RoundController, opt
       else game.events.once(Phaser.Core.Events.POST_RENDER, sleepIfLeft);
     },
     key: (k) => (active ? scene.key(k) : false),
+    done: () => {
+      if (active && game.isRunning) scene.done();
+      else current.done();
+    },
     showLook: (look) => {
       if (active) scene.showLook(look);
     },

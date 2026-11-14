@@ -108,6 +108,8 @@ export type RoundEvent<T extends TaskBase = TaskBase> =
   | { type: 'slotsShuffled'; slots: number[] }
   | CratesChanged
   | { type: 'checked'; right: boolean; marked: string[] }
+  /** An input of "Bauen und Malen" changed the task state (a selected square, a typed height), after its own events. */
+  | { type: 'inputApplied' }
   | { type: 'helpOpened'; step: number; auto: boolean }
   | { type: 'attemptRecorded'; record: AttemptRecord; progress: Progress }
   | { type: 'levelUp'; level: Level; name: string }
@@ -278,6 +280,11 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
   }
 
   // ---- "Bauen und Malen" ---------------------------------------------------------------------------------------
+
+  /** Selects a square of the plan ("Bauen"): a tap on the plan or the field, or the arrow keys (FR-024b). */
+  select(row: number, col: number): void {
+    this.input({ type: 'select', row, col });
+  }
 
   typeHeight(row: number, col: number, height: number): void {
     this.input({ type: 'typeHeight', row, col, height });
@@ -525,6 +532,7 @@ export class RoundController<T extends TaskBase = TaskBase, S = unknown> {
     if (r.unmark?.length) this.marked = this.marked.filter((m) => !r.unmark!.includes(m));
     for (const e of r.events ?? []) this.emit(e);
     if (this.phase === 'check') this.setPhase('aim');
+    this.emit({ type: 'inputApplied' });
   }
 
   private end(quit: boolean): void {

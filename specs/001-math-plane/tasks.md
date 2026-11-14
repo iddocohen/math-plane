@@ -82,12 +82,12 @@ description: "Task list for Mathe-Flieger"
 **Goal**: "Bauen und Malen" levels 1 and 2.
 **Independent Test**: quickstart scenario 4.
 
-- [ ] T044 [P] [US3] Implement `bauen` generation (2×2 stacks 1..3 on level 1, 3×3 stacks 0..3 on level 2, within settings) and `checkPlan` (empty squares count as wrong) in `src/core/tasks/`; tests
-- [ ] T045 [US3] Implement `src/core/round/BauenMalenRules.ts` for "Bauen": select square, `typeHeight` 0..4 (ignore other input), `clearHeight`, marker moves to the next square, events `cratesChanged`, `done` → marks or celebrate, round of `round.tasks` tasks, kinds alternating (FR-020, FR-021); tests
-- [ ] T046 [P] [US3] Implement `src/game/CratesView.ts`: crates on parachutes drop onto the stack timed with a plane pass, removal with a puff, crate landing sound (prototype `digit`, `updCrates`)
-- [ ] T047 [US3] Implement the plan grid UI in `src/game/CardsView.ts` (or `PlanInputView.ts`): "So soll es aussehen" card, tappable plan squares and field tiles to select (FR-024b), thick yellow frame on the selected square, dashed orange marks with "?" badge on wrong squares and towers (FR-024a)
-- [ ] T048 [US3] Copy `src/app/NumberPad.tsx` and test from math-soccer with keys 0 to 4, Backspace and "Fertig"; shown by the `numberPad` setting during "Bauen" (FR-011)
-- [ ] T049 [US3] Wire "Bauen" into `App.tsx`, `RoundScene.ts` and `RoundOverlay.tsx`; Playwright `tests/e2e/bauen.spec.ts`: build with one wrong stack, only that tower marked, fix, 3 stars
+- [X] T044 [P] [US3] Implement `bauen` generation (2×2 stacks 1..3 on level 1, 3×3 stacks 0..3 on level 2, within settings) and `checkPlan` (empty squares count as wrong) in `src/core/tasks/`; tests
+- [X] T045 [US3] Implement `src/core/round/BauenMalenRules.ts` for "Bauen": select square, `typeHeight` 0..4 (ignore other input), `clearHeight`, marker moves to the next square, events `cratesChanged`, `done` → marks or celebrate, round of `round.tasks` tasks, kinds alternating (FR-020, FR-021); tests
+- [X] T046 [P] [US3] Implement `src/game/CratesView.ts`: crates on parachutes drop onto the stack timed with a plane pass, removal with a puff, crate landing sound (prototype `digit`, `updCrates`)
+- [X] T047 [US3] Implement the plan grid UI in `src/game/CardsView.ts` (or `PlanInputView.ts`): "So soll es aussehen" card, tappable plan squares and field tiles to select (FR-024b), thick yellow frame on the selected square, dashed orange marks with "?" badge on wrong squares and towers (FR-024a)
+- [X] T048 [US3] Copy `src/app/NumberPad.tsx` and test from math-soccer with keys 0 to 4, Backspace and "Fertig"; shown by the `numberPad` setting during "Bauen" (FR-011)
+- [X] T049 [US3] Wire "Bauen" into `App.tsx`, `RoundScene.ts` and `RoundOverlay.tsx`; Playwright `tests/e2e/bauen.spec.ts`: build with one wrong stack, only that tower marked, fix, 3 stars
 
 ## Phase 6: User Story 4 - "Malen" and "Male an" (P1)
 

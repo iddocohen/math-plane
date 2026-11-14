@@ -325,6 +325,40 @@ button:focus-visible {
   box-shadow: 0 3px 0 var(--green-dark);
 }
 
+/* The number pad of "Bauen" (FR-011), copied from math-soccer: one row of keys across the bottom of the round. */
+.number-pad {
+  --pad-key: 56px;
+  display: flex;
+  gap: 8px;
+}
+
+.pad-key {
+  min-width: 48px;
+  min-height: 48px;
+  width: var(--pad-key);
+  height: var(--pad-key);
+  padding: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.75rem;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+
+.pad-key-done {
+  width: auto;
+  padding: 0 22px;
+  background: var(--green);
+  color: #fff;
+  font-size: 1.5rem;
+  box-shadow: 0 3px 0 var(--green-dark);
+}
+
+.pad-key:disabled {
+  opacity: 0.5;
+}
+
 /* Pause and round end over the round */
 .round-end {
   position: absolute;

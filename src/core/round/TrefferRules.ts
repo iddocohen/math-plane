@@ -10,7 +10,7 @@
  * its 3 buildings and "Ansicht finden" its 3 view cards. The choices of each task carry `rightIndexes`.
  */
 import type { Rng } from '../rng';
-import { generateTask } from '../tasks/generate';
+import { generateTrefferTask } from '../tasks/generate';
 import type { TrefferTask } from '../tasks/types';
 import type { TrefferRules as TrefferRulesShape } from './rules';
 
@@ -45,7 +45,7 @@ export function reshuffle(slots: readonly number[], choice: number, rng: Rng): n
 
 export const trefferRules: TrefferRulesShape<TrefferTask, TrefferState> = {
   mode: 'treffer',
-  createTask: (request) => generateTask(request),
+  createTask: (request) => generateTrefferTask(request),
   createState: (task, rng) => ({ slots: rng.shuffled(task.choices.map((_, i) => i)), lastHit: null }),
   restoreState: (task, raw) => {
     if (typeof raw !== 'object' || raw === null) return null;

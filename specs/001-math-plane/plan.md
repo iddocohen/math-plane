@@ -103,7 +103,7 @@ src/
 │   ├── rng.ts  util.ts  types.ts                     # copied
 │   ├── geometry/         # plan, views, mixed, iso
 │   ├── tasks/            # kinds, levels, generate, check, help
-│   ├── round/            # RoundController, events, stored round
+│   ├── round/            # RoundController, TrefferRules, BauenMalenRules, events, stored round
 │   ├── progress/         # outcome, adaptive, mastery, summarize
 │   ├── rewards/          # hangar, items
 │   ├── records/          # personal bests
@@ -120,13 +120,15 @@ README.md                 # how to play, parent guide, asset list
 ## Key design decisions
 
 1. **Prototype coordinates** (R3): plans, the isometric projection and the four views use exactly the prototype's conventions, so the parent-reviewed look and the hidden-side logic carry over.
-2. **Readable buildings by rule plus fallback list** (R4): every generated building is checked; a built-in list covers the rare seed where generation fails.
+2. **Readable buildings by geometric check plus fallback list** (R4, critique E1): every stack's top face must be mostly visible in the drawing; a built-in list covers the rare seed where generation fails.
 3. **Variants checked by equality** (R5, R7): exactly one right choice is guaranteed by comparing plans and view signatures.
 4. **Mixed buildings as pieces with painter's-order outlines** (R6): one model draws them in isometric, computes views, and hit-tests "Male an" regions.
 5. **Controller decides, view animates** (R2, R9): hit or miss is decided at tap time; the bomb path always ends at the target.
 6. **One bomb per pass and auto-help** (FR-008, FR-034): enforced in `RoundController`, tested in core, not in the scene.
 7. **Copy, then adapt math-soccer modules**; each copied file keeps a header comment naming its origin, as math-soccer did with math-tank.
 8. **Levels are data** (FR-055): `LEVELS` and `TaskKind` are lists; progress keys are strings `mode:kind:level`, so later topics add entries without migration.
+9. **Mode rules split from the controller** (R18): `TrefferRules` and `BauenMalenRules`; a fallback timer lands a bomb when the view does not.
+10. **Cached textures for buildings and cards** (R19).
 
 ## Phasing (maps to spec priorities)
 
@@ -143,10 +145,10 @@ README.md                 # how to play, parent guide, asset list
 
 ## Risks
 
-- **Mixed building generation produces unreadable views**: mitigated by templates and the visibility check (R6), with unit tests over many seeds.
+- **Mixed building generation produces unreadable views**: mitigated by templates and the visibility check (R6), with property tests over 500 seeds per task kind and level (critique E7).
 - **Views that look the same from two sides**: handled by accepting every equal side (R7) and tested.
 - **Copied math-soccer code drags in soccer concepts**: copied modules are trimmed; tests come with them.
-- **iPad layout with grid, card and field side by side**: the world is scaled as math-soccer; portrait stacks the grid below the field (layout tested in the ipad-portrait project).
+- **iPad layout with grid, card and field side by side**: the world is scaled as math-soccer; portrait stacks the grid below the field; a layout test in the ipad-portrait project checks that paint grid squares are at least 44 CSS px (critique P7).
 - **Publishing needs network and `gh` auth**: if `gh` is not logged in, the publish task records the blocker and the local build stays complete.
 
 ## Complexity Tracking

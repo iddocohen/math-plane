@@ -54,7 +54,7 @@ On higher "Treffer" levels, the child matches buildings and their plans and pick
 
 1. **Given** a "Bauplan finden" task, **When** it appears, **Then** a card shows a 2×2 building plan with stacks of 1 to 3 and a "vorn" mark, and 3 cube buildings stand on the field, each with a "vorn" mark, and exactly one of them matches the plan.
 2. **Given** a "Bauplan finden" task, **When** the child bombs a wrong building, **Then** a second card "Getroffen" appears beside the plan card and shows the building plan of the building that was hit.
-3. **Given** a "Bauplan finden" task, **When** the wrong buildings are generated, **Then** each one is the right building mirrored, turned, or with one stack changed, and none of them also matches the plan.
+3. **Given** a "Bauplan finden" task, **When** the wrong buildings are generated, **Then** each one is the right building mirrored, turned, or with one stack changed, and none of them also matches the plan or another wrong building. Plans with every stack equal are never used for this task.
 4. **Given** an "Ansicht finden" task on level 4, **When** it appears, **Then** one cube building stands on the field and 3 view cards lie on the field, the banner asks for the view from the front ("vorn") or from the top ("oben"), and exactly one card is that view.
 5. **Given** an "Ansicht finden" task on level 5, **When** it appears, **Then** the side asked can be vorn, oben, rechts or links, and the building may contain cylinders and spheres whose views show circles.
 6. **Given** an "Ansicht finden" task, **When** the child bombs a wrong card, **Then** a line names which side the bombed card shows (for example "Das ist die Ansicht von links."), the cards change places, and the task stays.
@@ -202,7 +202,7 @@ The child earns stars: 1 per hit in "Treffer" and 3 per finished "Bauen", "Malen
 - **FR-015**: A "Treffer" round MUST have a bomb bay of 10 bombs by default (parent setting, 5 to 20). Only bombs MUST be used up; there MUST be no hearts. The round ends when the last bomb has landed.
 - **FR-016**: "Körper finden" MUST show 4 solids chosen from Würfel, Quader, Zylinder, Kugel and Pyramide, in different colors, with exactly one matching the task.
 - **FR-017**: "Formen finden" MUST show flat shapes chosen from Kreis, Dreieck, Quadrat and Rechteck, with exactly one matching the task.
-- **FR-018**: "Bauplan finden" MUST show a plan card and 3 cube buildings. The wrong buildings MUST be close variants of the right one (mirrored, turned, or one stack changed) and MUST NOT match the plan. After a miss, a "Getroffen" card MUST show the plan of the building hit.
+- **FR-018**: "Bauplan finden" MUST show a plan card and 3 cube buildings. The wrong buildings MUST be close variants of the right one (mirrored, turned, or one stack changed) and MUST NOT match the plan or each other. A plan MUST be used only when it yields at least 2 such variants. After a miss, a "Getroffen" card MUST show the plan of the building hit.
 - **FR-019**: "Ansicht finden" MUST show one building and 3 view cards and ask for the view from one side ("Welche Ansicht siehst du von rechts?"). Exactly one card MUST equal the asked view. From level 5, buildings MUST include cylinders and spheres.
 
 **Mode "Bauen und Malen"**
@@ -211,7 +211,10 @@ The child earns stars: 1 per hit in "Treffer" and 3 per finished "Bauen", "Malen
 - **FR-021**: "Bauen" MUST show a card "So soll es aussehen" with the finished building, and an empty building plan that the child fills square by square with 0 to 4. Each typed number MUST drop crates on parachutes to build that stack on the field; a smaller number MUST remove crates with a puff. "Fertig" MUST check the plan and mark wrong towers on the plan and on the field.
 - **FR-022**: "Malen" MUST show a cube building, an eye with "Hier stehst du" at the side asked (vorn, rechts, links) or "Hier fliegst du" for oben, and an empty grid with "unten" under side views and "vorn" under the top view. "Fertig" MUST check the view and mark wrong squares. A right view MUST make the plane fly off trailing smoke in the building's color.
 - **FR-023**: "Male an" MUST draw the outlines of one view on the grid, including circles for cylinders and spheres, and offer the building's colors. The child MUST tap a color and then tap outlines to fill them. "Fertig" MUST check every outline and mark wrong or empty ones.
-- **FR-024**: Buildings in "Bauen" and "Malen" MUST be generated so that every stack can be counted in the drawing (no stack fully hidden behind a taller one), and a "Malen" view MUST never be all filled or all empty.
+- **FR-024**: Buildings in "Bauen" and "Malen" MUST be generated so that every stack can be counted in the drawing: no stack is hidden behind taller stacks in front of it, alone or together, and most of every stack's top face is visible. A "Malen" view MUST never be all filled or all empty.
+- **FR-024a**: Marks after a wrong "Fertig" (towers, squares, outlines) and the selected plan square MUST differ by shape as well as color: a mark is a thick dashed outline with a small "?" badge, and the selected square has a thick yellow frame (critique P5).
+- **FR-024b**: In "Bauen" the child MUST be able to select a plan square by tapping it on the plan or its tile on the field, so the number pad works without a keyboard (critique P6).
+- **FR-024c**: In "Formen finden" a Rechteck MUST have sides that differ by at least a factor 1.6, so it is never mistaken for a Quadrat (critique P3).
 
 **Buildings with cylinders and spheres**
 

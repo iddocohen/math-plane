@@ -31,16 +31,17 @@ Decisions for the plan. Each lists the decision, why, and what else was consider
 ## R4. Readable cube buildings
 
 - **Decision**: A generated cube building is accepted only when:
-  - for every cell, `h[row][col] >= h[row+1][col+1]` (the prototype's rule, so no stack hides behind the stack diagonally in front of it, FR-024);
+  - for every cell, `h[row][col] >= h[row+1][col+1]` (the prototype's rule, used as a fast pre-filter);
+  - every non-empty stack passes a geometric check: its top face is projected with `isoPoint`, 5 points are sampled (center and 4 inner corners at 25% from the edges), and at least 3 of them are not covered by the projected box of any cube nearer to the viewer (larger row + col). This rejects `[[1,3],[3,1]]`, whose back stack is covered by its two front neighbors (critique E1, FR-024);
   - at least 4 (2×2) or 5 (3×3) cells have height > 0, and the highest stack is at least 2;
   - for "Malen", the asked view is neither all filled nor all empty, and at least two of its columns differ;
   - all heights are within the level's and the parent's limits.
-  Generation tries up to 200 seeded candidates; after that it uses a small built-in list of buildings that meet the rules (spec edge case).
+  Generation tries up to 200 seeded candidates (the same bound applies to mixed buildings, critique E4); after that it uses a small built-in list of buildings that meet the rules (spec edge case).
 - **Rationale**: The prototype rule is simple and tested by the parent. The fallback keeps a task available for every seed.
 
 ## R5. "Bauplan finden" variants
 
-- **Decision**: Candidate variants of the right plan: mirror left-right, mirror front-back, turn by 90°, 180° and 270° (square plans), and change one stack by +1 or −1 within the limits (never to 0 on 2×2 levels with stacks 1 to 3). A candidate is kept only when its plan differs from the right plan and from every kept candidate. 2 variants are picked by the seeded Rng, preferring one structural variant (mirror or turn) and one stack change.
+- **Decision**: Candidate variants of the right plan: mirror left-right, mirror front-back, turn by 90°, 180° and 270° (square plans), and change one stack by +1 or −1 within the limits (never to 0 on 2×2 levels with stacks 1 to 3). A candidate is kept only when its plan differs from the right plan and from every kept candidate. 2 variants are picked by the seeded Rng, preferring one structural variant (mirror or turn) and one stack change. Plans with every stack equal, and plans with fewer than 2 distinct variants, are rejected for this task (critique P2).
 - **Rationale**: PRD 6.1 names exactly these variant kinds. Comparing plans cell by cell guarantees exactly one match (SC-005).
 
 ## R6. Mixed buildings (boxes, cylinders, spheres)
@@ -98,6 +99,18 @@ Decisions for the plan. Each lists the decision, why, and what else was consider
 ## R15. Help content
 
 - **Decision**: Per task kind, help step 1 is a German sentence from `de.ts`; step 2 is a pointer (target blinks; one wrong plan square shows its number; the view appears faintly in the grid; the right color shows on one region); step 3 shows the answer (target marked with a big arrow; the full plan shown faintly; the full view shown faintly; all region colors shown as dots), and the child places it. Auto-open after 2 misses (FR-034).
+
+## R17. Shapes, marks and selection (critique P3, P5, P6)
+
+- **Decision**: Rechteck aspect between 1.6 and 2.2; Quadrat, Kreis and Dreieck vary in size and turn by up to 20°. Wrong marks are a thick dashed warm-orange outline plus a "?" badge; the selected plan square has a thick yellow frame. Plan squares are selectable by tap on the plan card and on the field tile.
+
+## R18. Controller split and pass fallback (critique E2, E3)
+
+- **Decision**: `RoundController` holds phases, help, outcomes, stars, pause and storage of the round; `TrefferRules` and `BauenMalenRules` hold the mode-specific steps. During `pass` the controller sets a fallback from `now()`: if the view has not called `landBomb()` within the pass time plus 1 second, the controller lands the bomb itself. Pause stops the fallback.
+
+## R19. Drawing cost and versions (critique E6, E9)
+
+- **Decision**: Buildings, plan cards and view cards are drawn into cached textures and redrawn only when they change (crates, colors, marks). `pnpm-lock.yaml` is copied from math-soccer before `pnpm install`, so dependency versions match a known-good set.
 
 ## R16. Personal bests
 

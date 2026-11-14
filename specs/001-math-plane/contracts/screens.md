@@ -20,6 +20,7 @@ World size 1600 by 1000, scaled to fit, as math-soccer. Sky y 0 to 380 with clou
 
 - Arrow keys move the marker: over target slots ("Treffer"), plan squares ("Bauen"), grid squares ("Malen"), outlines and then the color row ("Male an"; Tab switches between outlines and colors).
 - Enter or Space: drop a bomb on the marked target; color or uncolor the marked square; fill the marked outline with the chosen color.
+- Tap a plan square on the plan card or its tile on the field: select it (thick yellow frame).
 - Digits 0 to 4: type the marked plan square's height ("Bauen"); the marker then moves to the next square. Backspace clears the marked square.
 - F: "Fertig". H: help. Escape: pause.
 
@@ -32,7 +33,7 @@ World size 1600 by 1000, scaled to fit, as math-soccer. Sky y 0 to 380 with clou
 | Crate added | crate falls on a parachute and lands on the stack | crate landing | none |
 | Crate removed | puff | soft puff | none |
 | Right "Fertig" | confetti; plane flies off trailing smoke in the building's color | cheer | "Super gebaut!" / "Genau so sieht es von rechts aus!" / "Schön angemalt!" |
-| Wrong "Fertig" | wrong towers, squares or outlines marked in warm orange | soft sound | "Fast! Schau dir die markierten Stellen an." |
+| Wrong "Fertig" | wrong towers, squares or outlines marked with a thick dashed warm-orange outline and a "?" badge | soft sound | "Fast! Schau dir die markierten Stellen an." |
 | Level up | as a right answer | as a right answer | "Neue Stufe: Große Baupläne!" |
 | Help step | pointer or faint answer | none | the hint sentence (step 1) |
 

@@ -184,7 +184,8 @@ export class PlaneView {
   private look: PlaneLook = DEFAULT_LOOK;
   private ms = 0;
   private smokeMs = 0;
-  private smokeColor: string | null = null;
+  private smokeColors: readonly string[] = [];
+  private puffs = 0;
   private owed = 0;
   private onRelease: (() => void) | null = null;
   private onPassEnd: (() => void) | null = null;
@@ -223,10 +224,13 @@ export class PlaneView {
     this.flight.startPass(releaseX);
   }
 
-  /** Trails smoke in `color` for `ms`, on top of the look's own trail. */
-  trailSmoke(color: string, ms: number): void {
-    this.smokeColor = color;
-    this.smokeMs = ms;
+  /**
+   * Trails smoke in `color` for `ms`, on top of the look's own trail (a right "Fertig", FR-021 to FR-023). A list of
+   * colors takes turns puff by puff, so a building of several colors ("Male an") trails all of them.
+   */
+  trailSmoke(color: string | readonly string[], ms: number): void {
+    this.smokeColors = typeof color === 'string' ? [color] : color;
+    this.smokeMs = this.smokeColors.length > 0 ? ms : 0;
   }
 
   /** The bomb bay in world units now. */
@@ -242,15 +246,15 @@ export class PlaneView {
     // The propeller blade, seen from the side, grows and shrinks as it spins.
     this.propeller.setSize(3 * PLANE_SCALE, (Math.abs(Math.sin((this.ms / 1000) * 40)) * 22 + 4) * 2 * PLANE_SCALE);
     this.smokeMs = Math.max(0, this.smokeMs - ms);
-    const color = this.smokeMs > 0 ? this.smokeColor : this.look.smoke;
-    if (color === null) {
+    const colors = this.smokeMs > 0 ? this.smokeColors : this.look.smoke === null ? [] : [this.look.smoke];
+    if (colors.length === 0) {
       this.owed = 0;
       return;
     }
     const s = this.flight.state();
     this.owed += (ms * TRAIL_RATE * s.scale) / 1000;
-    const tint = hexToNumber(color);
     for (; this.owed >= 1; this.owed -= 1) {
+      const tint = hexToNumber(colors[this.puffs++ % colors.length]!);
       this.trail.spawn([trailPuff(s.x + EXHAUST.x * s.facing * s.scale, s.y + EXHAUST.y * s.scale, tint, Math.random)]);
     }
   }

@@ -6,7 +6,8 @@
  * At the bottom: the bomb bay in "Treffer" (`data-testid="bombs"`) or the task counter "Aufgabe 2 von 5", the clock
  * when "Uhr zeigen" is on, and "Fertig" (`data-testid="done"`) in "Bauen und Malen". During a "Bauen" task the number
  * pad (FR-011) shows when `numberPad` is true; it has its own "Fertig" key, so the "Fertig" button then steps aside.
- * `children` is the place for the color row (T053).
+ * During a "Male an" task the color row (`data-testid="palette"`, ColorRow) shows the building's colors; a tap picks
+ * one. `children` adds more to the bottom bar.
  *
  * "Fertig" calls `onDone`, so the app can hold it while crates still fall (RoundScene `done`); pad digits and ⌫ go
  * to `onSceneKey` like the keyboard's keys.
@@ -22,6 +23,7 @@ import type { RoundController, RoundState } from '../core/round/RoundController'
 import type { ModeRules } from '../core/round/rules';
 import type { SceneKey } from '../game/taskViews';
 import { t } from '../i18n';
+import { ColorRow } from './ColorRow';
 import { noFocus } from './noFocus';
 import { NumberPad } from './NumberPad';
 import { requestFullscreen } from './StartScreen';
@@ -70,6 +72,15 @@ function BombBay({ left, total }: { left: number; total: number }) {
       </span>
     </div>
   );
+}
+
+/** The color row of a "Male an" task, from the task's palette and the rules' state (BauenMalenRules `MaleAnState`). */
+function MaleAnColors({ controller, state, disabled }: { controller: RoundController; state: RoundState; disabled: boolean }) {
+  const palette = (state.task as { palette?: unknown }).palette;
+  const look = state.taskState as { color?: string | null; selected?: { row: number; col: number } } | null;
+  if (!Array.isArray(palette)) return null;
+  const marker = look?.selected?.row === 1 ? look.selected.col : null;
+  return <ColorRow palette={palette as string[]} picked={look?.color ?? null} marker={marker} disabled={disabled} onPick={(c) => controller.pickColor(c)} />;
 }
 
 interface Props {
@@ -140,6 +151,7 @@ export function RoundOverlay({ controller, state, rules, banner, message, test, 
         )}
         {showClock && <Clock controller={controller} />}
         {children}
+        {state.task.kind === 'maleAn' && <MaleAnColors controller={controller} state={state} disabled={!writing} />}
         {pad && (
           <NumberPad
             disabled={!writing}

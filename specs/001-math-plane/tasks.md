@@ -94,12 +94,12 @@ description: "Task list for Mathe-Flieger"
 **Goal**: "Bauen und Malen" levels 3 to 5.
 **Independent Test**: quickstart scenario 5.
 
-- [ ] T050 [P] [US4] Implement `malen` generation (readable cube building, view not all filled or empty and at least two columns differ, sides per level and settings) and `checkPaint` in `src/core/tasks/`; tests over 500 seeds (FR-024)
-- [ ] T051 [P] [US4] Implement `maleAn` generation (mixed building, side, palette of the building's distinct colors) and `checkRegions` in `src/core/tasks/`; tests
-- [ ] T052 [US4] Extend `BauenMalenRules.ts` with `togglePaint`, `pickColor`, `fillRegion`, `done` for both kinds; level 5 mixes "Male an" and "Malen" (FR-022, FR-023); tests
-- [ ] T053 [US4] Implement `src/game/GridView.ts`: paint grid with "unten" or "vorn" label, outline regions drawn back to front and hit-tested with `hitTest`, color row (`data-testid="palette"`), marker for keyboard (arrows, Tab between outlines and colors, Enter or Space), dashed marks with "?" badge (FR-024a); eye "Hier stehst du" or "Hier fliegst du" at the asked side in `BuildingView.ts`
-- [ ] T054 [US4] Right view: plane flies off trailing smoke in the building's color (`PlaneView.ts`); wire "Malen" and "Male an" into the scene and overlay
-- [ ] T055 [US4] Playwright `tests/e2e/malen.spec.ts`: level 4 view with one extra square marked only there; level 5 "Male an" with one wrong color marked only there
+- [X] T050 [P] [US4] Implement `malen` generation (readable cube building, view not all filled or empty and at least two columns differ, sides per level and settings) and `checkPaint` in `src/core/tasks/`; tests over 500 seeds (FR-024)
+- [X] T051 [P] [US4] Implement `maleAn` generation (mixed building, side, palette of the building's distinct colors) and `checkRegions` in `src/core/tasks/`; tests
+- [X] T052 [US4] Extend `BauenMalenRules.ts` with `togglePaint`, `pickColor`, `fillRegion`, `done` for both kinds; level 5 mixes "Male an" and "Malen" (FR-022, FR-023); tests
+- [X] T053 [US4] Implement `src/game/GridView.ts`: paint grid with "unten" or "vorn" label, outline regions drawn back to front and hit-tested with `hitTest`, color row (`data-testid="palette"`), marker for keyboard (arrows, Tab between outlines and colors, Enter or Space), dashed marks with "?" badge (FR-024a); eye "Hier stehst du" or "Hier fliegst du" at the asked side in `BuildingView.ts`
+- [X] T054 [US4] Right view: plane flies off trailing smoke in the building's color (`PlaneView.ts`); wire "Malen" and "Male an" into the scene and overlay
+- [X] T055 [US4] Playwright `tests/e2e/malen.spec.ts`: level 4 view with one extra square marked only there; level 5 "Male an" with one wrong color marked only there
 
 ## Phase 7: User Story 5 - Help in steps (P1)
 

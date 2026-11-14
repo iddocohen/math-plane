@@ -89,6 +89,10 @@ export const de = {
     hitCard: 'Getroffen',
     /** The card with the plan to find in "Bauplan finden" (prototype `card(..., 'Bauplan')`). */
     planCard: 'Bauplan',
+    /** The card with the paint grid in "Malen" and "Male an" (prototype `drawMalen`): "Ansicht von rechts". */
+    viewCard: (side: keyof typeof fromSide) => `Ansicht ${fromSide[side]}`,
+    /** The name of a color in the color row of "Male an", for screen readers. */
+    colorNames: { '#e0413a': 'Rot', '#2f7fd1': 'Blau', '#f2c230': 'Gelb', '#3fa34d': 'Grün', '#ef7d22': 'Orange' } as Readonly<Record<string, string>>,
   },
 
   /** Names of solids and flat shapes (prototype `SOLIDS` and `SHAPES`): with the accusative and nominative article. */

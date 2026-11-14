@@ -4,8 +4,9 @@ import { createRng } from '../rng';
 import { defaultSettings } from '../settings/defaults';
 import type { Settings } from '../settings/schema';
 import { emptyProgress } from '../storage/schemas';
-import type { BauenTask } from '../tasks/types';
-import { bauenMalenRules, bauenRules, nextSquare, type BauenState } from './BauenMalenRules';
+import { hitTest } from '../geometry/mixed';
+import type { BauenTask, MaleAnTask, MalenTask } from '../tasks/types';
+import { bauenMalenRules, bauenRules, nextSquare, type BauenState, type MaleAnState, type MalenState } from './BauenMalenRules';
 import { RoundController, type RoundEvent } from './RoundController';
 import type { TaskBase } from './rules';
 
@@ -168,17 +169,196 @@ describe('bauenMalenRules "Bauen"', () => {
   });
 });
 
-describe('bauenMalenRules on levels 3 to 5 (until US4)', () => {
-  it('makes "Malen" and "Male an" tasks that alternate on level 5, and "Fertig" solves them', () => {
-    const s = settings((x) => {
+describe('bauenMalenRules "Malen" (T052, FR-009, FR-022)', () => {
+  const level = (n: 3 | 4) =>
+    settings((x) => {
+      x.levels.bauenMalen = { start: n, hardest: n };
+      x.adaptive = false;
+    });
+
+  function malen(seed = 4) {
+    const r = round({ settings: level(4), seed });
+    return { ...r, task: () => r.controller.state().task as MalenTask, state: () => r.controller.state().taskState as MalenState };
+  }
+
+  it('starts with an empty grid of the view\'s size and the marker on the bottom left square', () => {
+    const { controller, task, state } = malen();
+    expect(controller.state().task.kind).toBe('malen');
+    expect(controller.state().task.side).toBe(task().side);
+    expect(state().paint).toEqual(task().expected.cells.map((row) => row.map(() => false)));
+    expect(state().selected).toEqual({ row: task().expected.cells.length - 1, col: 0 });
+  });
+
+  it('togglePaint colors and empties a square and moves the marker; nothing is checked before "Fertig" (acceptance 3)', () => {
+    const { controller, events, state } = malen();
+    controller.togglePaint(0, 1);
+    expect(state().paint[0]![1]).toBe(true);
+    expect(state().selected).toEqual({ row: 0, col: 1 });
+    controller.togglePaint(0, 1);
+    expect(state().paint[0]![1]).toBe(false);
+    expect(events.filter((e) => e.type === 'checked')).toEqual([]);
+    expect(events.filter((e) => e.type === 'inputApplied')).toHaveLength(2);
+    expect(controller.state().misses).toBe(0);
+  });
+
+  it('select moves the marker inside the grid; other inputs are ignored', () => {
+    const { controller, state } = malen();
+    controller.select(1, 2);
+    expect(state().selected).toEqual({ row: 1, col: 2 });
+    const before = structuredClone(state());
+    controller.select(9, 0);
+    controller.togglePaint(-1, 0);
+    controller.typeHeight(0, 0, 2);
+    controller.pickColor('#e0413a');
+    controller.fillRegion(0);
+    expect(state()).toEqual(before);
+  });
+
+  it('marks exactly an extra and a missing square, fixing them solves the task (acceptance 4, 5)', () => {
+    const { controller, task, state } = malen();
+    const cells = task().expected.cells;
+    cells.forEach((row, r) => row.forEach((on, c) => on && controller.togglePaint(r, c)));
+    const extra = cells.flatMap((row, r) => row.flatMap((on, c) => (on ? [] : [[r, c] as const])))[0]!;
+    const missing = cells.flatMap((row, r) => row.flatMap((on, c) => (on ? [[r, c] as const] : [])))[0]!;
+    controller.togglePaint(...extra);
+    controller.togglePaint(...missing);
+    controller.done();
+    const marks = [`${extra[0]},${extra[1]}`, `${missing[0]},${missing[1]}`].sort();
+    expect([...controller.state().marked].sort()).toEqual(marks);
+    expect(controller.state().phase).toBe('check');
+    expect(controller.state().misses).toBe(1);
+    controller.togglePaint(...extra);
+    expect(controller.state().marked).toEqual([`${missing[0]},${missing[1]}`]);
+    controller.togglePaint(...missing);
+    expect(state().paint).toEqual(cells);
+    controller.done();
+    expect(controller.state().phase).toBe('celebrate');
+  });
+
+  it('level 3 asks only for vorn and oben', () => {
+    const { controller } = round({ settings: level(3), seed: 2 });
+    for (let i = 0; i < 5; i++) {
+      expect(controller.state().task.kind).toBe('malen');
+      expect(['vorn', 'oben']).toContain(controller.state().task.side);
+      const task = controller.state().task as MalenTask;
+      task.expected.cells.forEach((row, r) => row.forEach((on, c) => on && controller.togglePaint(r, c)));
+      controller.done();
+      controller.next();
+    }
+  });
+
+  it('data-answer is the view, and a stored round keeps the painted squares', () => {
+    const s = level(4);
+    const first = new RoundController<TaskBase, unknown>({ rules: bauenMalenRules, settings: s, progress: emptyProgress(), seed: 9, now: () => 0 });
+    const task = first.state().task as MalenTask;
+    expect(bauenMalenRules.answer!(task, first.state().taskState)).toBe(task.expected.signature);
+    first.togglePaint(0, 0);
+    const again = new RoundController<TaskBase, unknown>({ rules: bauenMalenRules, settings: s, progress: emptyProgress(), seed: 9, now: () => 0, stored: first.toStored() });
+    expect(again.restored).toBe(true);
+    expect((again.state().taskState as MalenState).paint[0]![0]).toBe(true);
+  });
+});
+
+describe('bauenMalenRules "Male an" (T052, FR-009, FR-023)', () => {
+  const level5 = () =>
+    settings((x) => {
       x.levels.bauenMalen = { start: 5, hardest: 5 };
       x.adaptive = false;
     });
-    const { controller } = round({ settings: s, seed: 4 });
+
+  function maleAn(seed = 4) {
+    const r = round({ settings: level5(), seed });
+    expect(r.controller.state().task.kind).toBe('maleAn');
+    return { ...r, task: () => r.controller.state().task as MaleAnTask, state: () => r.controller.state().taskState as MaleAnState };
+  }
+
+  it('starts with empty regions, no color and the marker on the first color', () => {
+    const { task, state } = maleAn();
+    expect(state().regionColors).toEqual(task().building.pieces.map(() => null));
+    expect(state().color).toBeNull();
+    expect(state().selected).toEqual({ row: 1, col: 0 });
+  });
+
+  it('a region fills only after a color is picked, and can be changed before "Fertig" (acceptance 7)', () => {
+    const { controller, events, task, state } = maleAn();
+    controller.fillRegion(0);
+    expect(state().regionColors[0]).toBeNull();
+    const [a, b] = task().palette;
+    controller.pickColor(a!);
+    expect(state().color).toBe(a);
+    expect(state().selected).toEqual({ row: 1, col: 0 });
+    controller.fillRegion(0);
+    expect(state().regionColors[0]).toBe(a);
+    expect(state().selected).toEqual({ row: 0, col: 0 });
+    controller.pickColor(b!);
+    controller.fillRegion(0);
+    expect(state().regionColors[0]).toBe(b);
+    expect(events.filter((e) => e.type === 'checked')).toEqual([]);
+  });
+
+  it('ignores colors outside the palette, unknown regions and inputs of other kinds', () => {
+    const { controller, state } = maleAn();
+    const before = structuredClone(state());
+    controller.pickColor('#000000');
+    controller.fillRegion(99);
+    controller.select(2, 0);
+    controller.select(0, 99);
+    controller.togglePaint(0, 0);
+    controller.typeHeight(0, 0, 1);
+    expect(state()).toEqual(before);
+    controller.select(0, 1);
+    expect(state().selected).toEqual({ row: 0, col: 1 });
+  });
+
+  it('marks only the region with a wrong color; fixing it solves the task (acceptance 8)', () => {
+    const { controller, task } = maleAn();
+    const pieces = task().building.pieces;
+    pieces.forEach((p, i) => {
+      controller.pickColor(i === 1 ? task().palette.find((c) => c !== p.color)! : p.color);
+      controller.fillRegion(i);
+    });
+    controller.done();
+    expect(controller.state().marked).toEqual(['r1']);
+    expect(controller.state().phase).toBe('check');
+    controller.pickColor(pieces[1]!.color);
+    controller.fillRegion(1);
+    expect(controller.state().marked).toEqual([]);
+    controller.done();
+    expect(controller.state().phase).toBe('celebrate');
+  });
+
+  it('marks empty regions', () => {
+    const { controller, task } = maleAn();
+    controller.done();
+    expect(controller.state().marked).toEqual(task().building.pieces.map((_, i) => `r${i}`));
+  });
+
+  it('data-answer gives each region\'s color and a point inside it', () => {
+    const { controller, task } = maleAn();
+    const answer = bauenMalenRules.answer!(task(), controller.state().taskState);
+    const [size, ...parts] = answer.split(' ');
+    expect(size).toBe(`${task().view.width}x${task().view.height}`);
+    expect(parts).toHaveLength(task().building.pieces.length);
+    parts.forEach((part, i) => {
+      const m = /^(\d+):(#[0-9a-f]{6})@([\d.]+),([\d.]+)$/.exec(part)!;
+      expect(Number(m[1])).toBe(i);
+      expect(m[2]).toBe(task().building.pieces[i]!.color);
+      expect(hitTest(task().view, Number(m[3]), Number(m[4]))).toBe(i);
+    });
+  });
+
+  it('level 5 alternates "Male an" and "Malen" (FR-020)', () => {
+    const { controller } = round({ settings: level5(), seed: 4 });
     const kinds: string[] = [];
     for (let i = 0; i < 5; i++) {
-      kinds.push(controller.state().task.kind);
-      expect(controller.state().task.mode).toBe('bauenMalen');
+      const task = controller.state().task;
+      kinds.push(task.kind);
+      if (task.kind === 'malen') (task as MalenTask).expected.cells.forEach((row, r) => row.forEach((on, c) => on && controller.togglePaint(r, c)));
+      else
+        (task as MaleAnTask).building.pieces.forEach((p, k) => {
+          controller.pickColor(p.color);
+          controller.fillRegion(k);
+        });
       controller.done();
       expect(controller.state().phase).toBe('celebrate');
       controller.next();
@@ -186,7 +366,9 @@ describe('bauenMalenRules on levels 3 to 5 (until US4)', () => {
     expect(kinds).toEqual(['maleAn', 'malen', 'maleAn', 'malen', 'maleAn']);
     expect(controller.state().phase).toBe('ended');
   });
+});
 
+describe('bauenMalenRules tasks', () => {
   it('the same seed makes the same "Bauen" task', () => {
     const request = (seed: number) => ({ content: { kind: 'bauen' as const, level: 2 as const, plan: { size: 3 as const, minStack: 0, maxStack: 3 } }, settings: settings(), rng: createRng(seed), id: 'x', seed });
     expect(bauenMalenRules.createTask(request(8))).toEqual(bauenMalenRules.createTask(request(8)));

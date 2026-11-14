@@ -12,6 +12,10 @@
  * - "Ansicht finden" (FR-019, research R7): one building, a cube building or, where the content allows, a building
  *   with mixed pieces half of the time; the side asked from the content's sides; the right view card and 2 wrong ones.
  * - "Bauen" (FR-021): a readable cube building within the content's plan limits (bauen.ts).
+ * - "Malen" (FR-022, FR-024): a readable cube building and a side whose view is worth painting (malen.ts). Side views
+ *   are as high as the parent's highest stack.
+ * - "Male an" (FR-023, research R8): a building with mixed pieces, or boxes only when the content says so, seen from
+ *   one side, within the parent's largest plan and highest stack (maleAn.ts).
  */
 import { generateMixed, mirrorMixedView, mixedView, withoutPiece, carriesOther, type MixedBuilding } from '../geometry/mixed';
 import { FALLBACK_PLANS, GENERATE_TRIES, generateCubePlan, hasVariants, meetsRules, plansEqual, planVariants, type Plan, type PlanLimits } from '../geometry/plan';
@@ -20,6 +24,8 @@ import type { Rng } from '../rng';
 import type { TaskRequest } from '../round/rules';
 import { FLAT_SHAPES, SIDES, SOLIDS, type Level, type Side } from '../types';
 import { generateBauen } from './bauen';
+import { generateMaleAn, MALE_AN_PLAN } from './maleAn';
+import { generateMalen, MALEN_PLAN } from './malen';
 import { PIECE_COLORS } from './colors';
 import { isTrefferTask, type AnsichtFindenTask, type BauplanFindenTask, type FormenTask, type KoerperTask, type ShapeLook, type Task, type TrefferTask, type ViewCard } from './types';
 
@@ -179,8 +185,13 @@ export function generateTask(request: TaskRequest): Task {
     case 'bauen':
       return generateBauen(rng, ident, content.plan);
     case 'malen':
-    case 'maleAn':
-      throw new RangeError(`generateTask: no generator for ${content.kind} yet`);
+      return generateMalen(rng, ident, content.sides ?? [], content.plan ?? MALEN_PLAN, request.settings.buildings.maxStack);
+    case 'maleAn': {
+      // The level gives "Male an" no plan limits; the parent's largest plan and highest stack still apply (FR-032).
+      const { maxPlan, maxStack } = request.settings.buildings;
+      const limits = content.plan ?? { ...MALE_AN_PLAN, size: Math.min(MALE_AN_PLAN.size, maxPlan) as 2 | 3, maxStack: Math.min(MALE_AN_PLAN.maxStack, maxStack) };
+      return generateMaleAn(rng, ident, content.sides ?? [], content.mixed ?? true, limits);
+    }
   }
 }
 

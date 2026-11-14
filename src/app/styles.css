@@ -326,6 +326,36 @@ button:focus-visible {
 }
 
 /* The number pad of "Bauen" (FR-011), copied from math-soccer: one row of keys across the bottom of the round. */
+/* The color row of "Male an": round swatches; the picked one has a dark ring, the keyboard marker a yellow one. */
+.color-row {
+  display: flex;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+}
+
+.color-swatch {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px rgba(36, 50, 74, 0.35);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.color-swatch.picked {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 5px #24324a;
+}
+
+.color-swatch.marked {
+  outline: 6px solid #ffd23f;
+  outline-offset: 4px;
+}
+
 .number-pad {
   --pad-key: 56px;
   display: flex;

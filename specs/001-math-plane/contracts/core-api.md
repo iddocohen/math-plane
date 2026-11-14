@@ -36,9 +36,9 @@ pickContent(mode, level, settings, rng): { kind: TaskKind; level: number }; // R
 generateTask(mode, kind, level, settings, rng): Task;
 // core/tasks/check.ts
 checkBomb(task, choiceIndex): { hit: boolean; named: string };   // named = German line key for a miss
-checkPlan(task, input): { right: boolean; wrong: [row, col][] };
-checkPaint(task, paint): { right: boolean; wrong: [row, col][] };
-checkRegions(task, colors): { right: boolean; wrong: number[] };
+checkPlan(target: Plan, input): string[];              // core/tasks/bauen.ts: wrong squares as "row,col"
+checkPaint(expected: CubeView, paint): string[];      // core/tasks/malen.ts: wrong squares as "row,col"
+checkRegions(task, colors): number[];                 // core/tasks/maleAn.ts: piece indexes of wrong or empty regions
 // core/tasks/help.ts
 helpFor(task, state, step): HelpView;          // R15
 ```

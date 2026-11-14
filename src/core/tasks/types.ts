@@ -108,8 +108,39 @@ export interface BauenTask extends TaskBase {
   color: string;
 }
 
-/** Every task the generator makes so far. "Malen" and "Male an" (US4) join here. */
-export type Task = TrefferTask | BauenTask;
+/**
+ * "Malen" (FR-022, FR-024): a readable cube building, the side the child looks from, and the view the child paints.
+ * `expected` is the view on its grid: side views are as high as the parent's highest stack, the view from above has
+ * the plan's rows.
+ */
+export interface MalenTask extends TaskBase {
+  kind: 'malen';
+  mode: 'bauenMalen';
+  side: Side;
+  building: Plan;
+  expected: CubeView;
+  /** The color of the building and of the painted squares, `#rrggbb`. */
+  color: string;
+}
+
+/**
+ * "Male an" (FR-023, research R8): a building with mixed pieces (boxes only when the parent turned cylinders and
+ * spheres off), the side, its view as outlines, and the colors offered: the building's colors in a fixed order.
+ */
+export interface MaleAnTask extends TaskBase {
+  kind: 'maleAn';
+  mode: 'bauenMalen';
+  side: Side;
+  building: MixedBuilding;
+  view: MixedView;
+  palette: string[];
+}
+
+/** Every "Bauen und Malen" task. */
+export type BauenMalenTask = BauenTask | MalenTask | MaleAnTask;
+
+/** Every task the generator makes. */
+export type Task = TrefferTask | BauenMalenTask;
 
 /** True for a task with choices to bomb. */
 export function isTrefferTask(task: TaskBase): task is TrefferTask {

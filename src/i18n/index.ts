@@ -1,14 +1,11 @@
 // Adapted from math-soccer src/i18n/index.ts: Mathe-Flieger's sections and the 8-word limit (FR-040).
+import type { ResetReason } from '../core/storage/storage';
 import { de } from './de';
+
+export type { ResetReason };
 
 /** The shape every translation table must have; de.ts is the source of truth for keys. */
 export type Messages = typeof de;
-
-/**
- * Why stored data was reset on load, as math-soccer's src/core/storage/storage.ts names it. The storage module (T012)
- * becomes the source of this type when it is copied.
- */
-export type ResetReason = 'none' | 'invalid' | 'newer' | 'unavailable';
 
 const active: Messages = de;
 
